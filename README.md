@@ -92,3 +92,36 @@ The included `render.yaml` uses the same settings.
 ## Free Hosting Limitations
 
 Render Free Web Services can sleep after inactivity and wake on a later HTTP request or new WebSocket connection. v0.1 accepts this limitation. Existing in-memory rooms are lost when the service restarts or sleeps.
+
+## v0.1 Manual QA Checklist
+
+```markdown
+- [ ] Local dev server starts
+- [ ] Local Vite client starts
+- [ ] Production build succeeds
+- [ ] Production server starts
+- [ ] `/healthz` returns `{ "ok": true }`
+- [ ] User A can create a room
+- [ ] Room code is visible in the HUD
+- [ ] User B can join with the room code
+- [ ] Third user is rejected
+- [ ] Two users enter the same 3D scene
+- [ ] User A can move with WASD
+- [ ] User B can move with WASD
+- [ ] User A can mouse-look after clicking the canvas
+- [ ] User B can mouse-look after clicking the canvas
+- [ ] User A sees User B's model
+- [ ] User B sees User A's model
+- [ ] User A sees User B movement
+- [ ] User B sees User A movement
+- [ ] Closing one tab removes the remote model in the other tab
+- [ ] Stopping the server shows a disconnected state instead of a blank screen
+```
+
+## Public v0.1 Test URL
+
+```text
+https://<your-service-name>.onrender.com
+```
+
+Use this URL to create a room and invite one friend with the room code.
