@@ -1,5 +1,4 @@
 import express from "express";
-import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { Server } from "colyseus";
@@ -8,16 +7,15 @@ import { ROOM_NAME } from "../shared/constants.js";
 import { GameRoom } from "./rooms/GameRoom.js";
 
 const port = Number(process.env.PORT ?? 2567);
-const app = express();
-const httpServer = http.createServer(app);
 
-const gameServer = new Server({
-  transport: new WebSocketTransport({
-    server: httpServer
-  })
-});
+// Let Colyseus create and own the HTTP server so it handles matchmaking routes
+const transport = new WebSocketTransport();
+const gameServer = new Server({ transport });
 
 gameServer.define(ROOM_NAME, GameRoom);
+
+// Mount our routes on the Colyseus transport's internal Express app
+const app = transport.getExpressApp();
 
 app.get("/healthz", (_req, res) => {
   res.status(200).json({
@@ -46,6 +44,6 @@ if (fs.existsSync(clientIndexPath)) {
   });
 }
 
-httpServer.listen(port, "0.0.0.0", () => {
+transport.listen(port, "0.0.0.0", undefined, () => {
   console.log(`CS-Lite server listening on port ${port}`);
 });
