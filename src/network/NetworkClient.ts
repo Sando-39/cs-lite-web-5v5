@@ -46,6 +46,8 @@ export class NetworkClient {
   private client: Client;
   private room: Room | null = null;
   private events: NetworkClientEvents;
+  private currentStatus: ConnectionStatus = "idle";
+  private lastLeftSessionId: string | null = null;
 
   constructor(events: NetworkClientEvents) {
     this.client = new Client(
@@ -66,6 +68,14 @@ export class NetworkClient {
     return this.room?.roomId ?? null;
   }
 
+  get status(): ConnectionStatus {
+    return this.currentStatus;
+  }
+
+  get playerLeftSessionId(): string | null {
+    return this.lastLeftSessionId;
+  }
+
   async createRoom(): Promise<void> {
     await this.connect(() => this.client.create(ROOM_NAME));
   }
@@ -82,7 +92,7 @@ export class NetworkClient {
   }
 
   sendMove(move: MoveMessage): void {
-    if (!this.room) {
+    if (!this.room || this.currentStatus !== "connected") {
       return;
     }
 
@@ -126,31 +136,38 @@ export class NetworkClient {
     if (this.room) {
       this.room.leave();
       this.room = null;
-      this.events.onStatusChange("disconnected");
+      this.setStatus("disconnected");
     }
   }
 
   private async connect(joiner: () => Promise<Room>): Promise<void> {
-    this.events.onStatusChange("connecting");
+    this.setStatus("connecting");
 
     try {
       const room = await joiner();
       this.room = room;
-      this.events.onStatusChange("connected");
+      this.lastLeftSessionId = null;
+      this.setStatus("connected");
 
       room.onLeave(() => {
-        this.events.onStatusChange("disconnected");
+        this.setStatus("disconnected");
       });
 
       room.onMessage("playerLeft", (message: { sessionId?: string }) => {
         if (typeof message.sessionId === "string") {
+          this.lastLeftSessionId = message.sessionId;
           this.events.onPlayerLeft(message.sessionId);
         }
       });
     } catch (error) {
       this.room = null;
-      this.events.onStatusChange("idle");
+      this.setStatus("idle");
       this.events.onError(mapJoinErrorToMessage(error));
     }
+  }
+
+  private setStatus(status: ConnectionStatus): void {
+    this.currentStatus = status;
+    this.events.onStatusChange(status);
   }
 }

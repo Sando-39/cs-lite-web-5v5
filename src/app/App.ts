@@ -16,11 +16,11 @@ export class App {
     this.network = new NetworkClient({
       onStatusChange: (status) => {
         this.status = status;
-        this.render();
+        this.renderIfOnHome();
       },
       onError: (message) => {
         this.errorMessage = message;
-        this.render();
+        this.renderIfOnHome();
       },
       onPlayerLeft: () => undefined
     });
@@ -28,6 +28,12 @@ export class App {
 
   mount(): void {
     this.render();
+  }
+
+  private renderIfOnHome(): void {
+    if (this.root.querySelector(".panel")) {
+      this.render();
+    }
   }
 
   private render(): void {

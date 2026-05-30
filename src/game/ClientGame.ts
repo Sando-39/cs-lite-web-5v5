@@ -111,6 +111,7 @@ export class ClientGame {
     this.camera.rotation.x = this.input.getPitch();
     this.camera.rotation.y = this.currentTransform.rotationY;
 
+    this.updateConnectionStatus();
     this.updatePointerHelp();
     this.updatePeerStatus();
 
@@ -130,6 +131,27 @@ export class ClientGame {
     this.scene.render();
   }
 
+  private updateConnectionStatus(): void {
+    const status = this.root.querySelector<HTMLDivElement>("#connection-status");
+
+    if (!status) {
+      return;
+    }
+
+    if (this.network.status === "connected") {
+      status.innerHTML = "<strong>连接状态：</strong>已连接";
+      return;
+    }
+
+    if (this.network.status === "disconnected") {
+      status.innerHTML =
+        "<strong>连接状态：</strong>连接已断开，请返回首页重新加入";
+      return;
+    }
+
+    status.innerHTML = "<strong>连接状态：</strong>连接中";
+  }
+
   private updatePointerHelp(): void {
     const help = this.root.querySelector<HTMLDivElement>("#pointer-help");
 
@@ -146,6 +168,11 @@ export class ClientGame {
     const status = this.root.querySelector<HTMLDivElement>("#peer-status");
 
     if (!status) {
+      return;
+    }
+
+    if (this.network.playerLeftSessionId) {
+      status.textContent = "对方已离开房间。";
       return;
     }
 
