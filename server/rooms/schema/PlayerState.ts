@@ -1,5 +1,5 @@
 import { Schema, type } from "@colyseus/schema";
-import type { PlayerColor, ServerPlayerRecord } from "../../../shared/types";
+import type { PlayerColor, ServerPlayerRecord } from "../../../shared/types.js";
 
 export class PlayerState extends Schema {
   @type("string") sessionId = "";

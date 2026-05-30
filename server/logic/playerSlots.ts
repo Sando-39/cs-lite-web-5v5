@@ -1,6 +1,6 @@
-import { MAX_PLAYERS } from "../../shared/constants";
-import type { ServerPlayerRecord } from "../../shared/types";
-import { SPAWN_POINTS, type SpawnPoint } from "../config/spawns";
+import { MAX_PLAYERS } from "../../shared/constants.js";
+import type { ServerPlayerRecord } from "../../shared/types.js";
+import { SPAWN_POINTS, type SpawnPoint } from "../config/spawns.js";
 
 export function canAcceptPlayer(currentPlayerCount: number): boolean {
   return currentPlayerCount < MAX_PLAYERS;

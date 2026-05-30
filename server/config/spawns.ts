@@ -1,5 +1,5 @@
-import { CAMERA_HEIGHT } from "../../shared/constants";
-import type { PlayerColor } from "../../shared/types";
+import { CAMERA_HEIGHT } from "../../shared/constants.js";
+import type { PlayerColor } from "../../shared/types.js";
 
 export type SpawnPoint = {
   x: number;

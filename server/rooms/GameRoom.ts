@@ -1,14 +1,14 @@
 import { Room, type Client } from "colyseus";
-import { MAX_PLAYERS } from "../../shared/constants";
-import { createPlayerRecord } from "../logic/playerSlots";
+import { MAX_PLAYERS } from "../../shared/constants.js";
+import { createPlayerRecord } from "../logic/playerSlots.js";
 import {
   normalizeMoveMessage,
   validateAndClampMove
-} from "../logic/movement";
-import { GameState } from "./schema/GameState";
-import { createPlayerState } from "./schema/PlayerState";
+} from "../logic/movement.js";
+import { GameState } from "./schema/GameState.js";
+import { createPlayerState } from "./schema/PlayerState.js";
 
-export class GameRoom extends Room<GameState> {
+export class GameRoom extends Room<{ state: GameState }> {
   maxClients = MAX_PLAYERS;
 
   onCreate(): void {
