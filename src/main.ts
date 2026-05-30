@@ -1,16 +1,21 @@
 import "./styles.css";
+import { App } from "./app/App";
 
-const app = document.querySelector<HTMLDivElement>("#app");
+const root = document.querySelector<HTMLDivElement>("#app");
 
-if (!app) {
+if (!root) {
   throw new Error("Missing #app root element.");
 }
 
-app.innerHTML = `
-  <main class="shell">
-    <section class="panel">
-      <h1>CS-Lite Web v0.1</h1>
-      <p>项目脚手架已启动。下一步会加入房间、3D 场景和同步。</p>
-    </section>
-  </main>
-`;
+const app = new App(root, () => {
+  root.innerHTML = `
+    <main class="shell">
+      <section class="panel">
+        <h1>房间已连接</h1>
+        <p>下一步会启动 Babylon.js 3D 场景。</p>
+      </section>
+    </main>
+  `;
+});
+
+app.mount();
