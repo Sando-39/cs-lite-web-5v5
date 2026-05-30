@@ -9,6 +9,7 @@ import type { MoveMessage } from "../../shared/types";
 import { NetworkClient } from "../network/NetworkClient";
 import { InputController } from "./InputController";
 import { MapBuilder } from "./MapBuilder";
+import { RemotePlayerView } from "./RemotePlayerView";
 
 export class ClientGame {
   private root: HTMLDivElement;
@@ -17,6 +18,7 @@ export class ClientGame {
   private scene: Scene | null = null;
   private camera: FreeCamera | null = null;
   private input: InputController | null = null;
+  private remotePlayers: RemotePlayerView | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private lastMoveSentAt = 0;
   private currentTransform: MoveMessage = {
@@ -38,6 +40,8 @@ export class ClientGame {
         <div class="crosshair"></div>
         <div class="game-hud">
           <div class="hud-card"><strong>房间码：</strong>${this.network.roomId ?? "未知"}</div>
+          <div class="hud-card" id="connection-status"><strong>连接状态：</strong>已连接</div>
+          <div class="hud-card" id="peer-status">等待另一名玩家加入。</div>
           <div class="hud-card" id="pointer-help">点击画面锁定鼠标。WASD 移动，ESC 退出鼠标锁定。</div>
         </div>
       </div>
@@ -68,6 +72,8 @@ export class ClientGame {
     this.input = new InputController(canvas, initial);
     this.input.attach();
 
+    this.remotePlayers = new RemotePlayerView(this.scene);
+
     window.addEventListener("resize", this.handleResize);
 
     this.engine.runRenderLoop(() => {
@@ -78,12 +84,14 @@ export class ClientGame {
   dispose(): void {
     window.removeEventListener("resize", this.handleResize);
     this.input?.detach();
+    this.remotePlayers?.dispose();
     this.scene?.dispose();
     this.engine?.dispose();
     this.engine = null;
     this.scene = null;
     this.camera = null;
     this.input = null;
+    this.remotePlayers = null;
     this.canvas = null;
   }
 
@@ -104,6 +112,7 @@ export class ClientGame {
     this.camera.rotation.y = this.currentTransform.rotationY;
 
     this.updatePointerHelp();
+    this.updatePeerStatus();
 
     const now = performance.now();
     const sendIntervalMs = 1000 / MOVE_SEND_HZ;
@@ -112,6 +121,11 @@ export class ClientGame {
       this.network.sendMove(this.currentTransform);
       this.lastMoveSentAt = now;
     }
+
+    this.remotePlayers?.update(
+      this.network.getPlayersSnapshot(),
+      this.network.sessionId
+    );
 
     this.scene.render();
   }
@@ -126,6 +140,22 @@ export class ClientGame {
     help.textContent = this.input.isMouseLocked()
       ? "鼠标已锁定。WASD 移动，ESC 退出。"
       : "点击画面锁定鼠标。WASD 移动，ESC 退出鼠标锁定。";
+  }
+
+  private updatePeerStatus(): void {
+    const status = this.root.querySelector<HTMLDivElement>("#peer-status");
+
+    if (!status) {
+      return;
+    }
+
+    const players = this.network.getPlayersSnapshot();
+    const remoteCount = players.filter(
+      (player) => player.sessionId !== this.network.sessionId
+    ).length;
+
+    status.textContent =
+      remoteCount > 0 ? "另一名玩家已加入。" : "等待另一名玩家加入。";
   }
 
   private getInitialLocalTransform(): MoveMessage {
