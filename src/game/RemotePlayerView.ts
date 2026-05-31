@@ -3,50 +3,118 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial
+  StandardMaterial,
+  Vector3
 } from "@babylonjs/core";
+import {
+  REMOTE_POSITION_LERP_ALPHA,
+  REMOTE_ROTATION_LERP_ALPHA
+} from "../../shared/constants";
 import type { ClientPlayerSnapshot } from "../../shared/types";
+import { lerpNumber, lerpRotationY } from "./interpolation";
+
+type RemotePlayerRenderState = {
+  mesh: Mesh;
+  targetPosition: Vector3;
+  targetRotationY: number;
+  lastSnapshotAt: number;
+};
 
 export class RemotePlayerView {
   private scene: Scene;
-  private meshes = new Map<string, Mesh>();
+  private players = new Map<string, RemotePlayerRenderState>();
 
   constructor(scene: Scene) {
     this.scene = scene;
   }
 
-  update(players: ClientPlayerSnapshot[], localSessionId: string | null): void {
+  updateTargets(players: ClientPlayerSnapshot[], localSessionId: string | null): void {
+    const now = performance.now();
     const remotePlayers = players.filter(
       (player) => player.sessionId !== localSessionId
     );
     const remoteIds = new Set(remotePlayers.map((player) => player.sessionId));
 
     for (const player of remotePlayers) {
-      let mesh = this.meshes.get(player.sessionId);
+      let state = this.players.get(player.sessionId);
 
-      if (!mesh) {
-        mesh = this.createMesh(player);
-        this.meshes.set(player.sessionId, mesh);
+      if (!state) {
+        const mesh = this.createMesh(player);
+        mesh.position.set(player.x, player.y - 0.85, player.z);
+        mesh.rotation.y = player.rotationY;
+
+        state = {
+          mesh,
+          targetPosition: new Vector3(player.x, player.y - 0.85, player.z),
+          targetRotationY: player.rotationY,
+          lastSnapshotAt: now
+        };
+
+        this.players.set(player.sessionId, state);
       }
 
-      mesh.position.set(player.x, player.y - 0.85, player.z);
-      mesh.rotation.y = player.rotationY;
+      state.targetPosition.set(player.x, player.y - 0.85, player.z);
+      state.targetRotationY = player.rotationY;
+      state.lastSnapshotAt = now;
     }
 
-    for (const [sessionId, mesh] of this.meshes.entries()) {
+    for (const [sessionId, state] of this.players.entries()) {
       if (!remoteIds.has(sessionId)) {
-        mesh.dispose();
-        this.meshes.delete(sessionId);
+        state.mesh.dispose();
+        this.players.delete(sessionId);
       }
     }
   }
 
-  dispose(): void {
-    for (const mesh of this.meshes.values()) {
-      mesh.dispose();
+  render(): void {
+    for (const state of this.players.values()) {
+      state.mesh.position.x = lerpNumber(
+        state.mesh.position.x,
+        state.targetPosition.x,
+        REMOTE_POSITION_LERP_ALPHA
+      );
+      state.mesh.position.y = lerpNumber(
+        state.mesh.position.y,
+        state.targetPosition.y,
+        REMOTE_POSITION_LERP_ALPHA
+      );
+      state.mesh.position.z = lerpNumber(
+        state.mesh.position.z,
+        state.targetPosition.z,
+        REMOTE_POSITION_LERP_ALPHA
+      );
+      state.mesh.rotation.y = lerpRotationY(
+        state.mesh.rotation.y,
+        state.targetRotationY,
+        REMOTE_ROTATION_LERP_ALPHA
+      );
+    }
+  }
+
+  getRemotePlayerCount(): number {
+    return this.players.size;
+  }
+
+  getNewestSnapshotAgeMs(): number | null {
+    let newest = 0;
+
+    for (const state of this.players.values()) {
+      newest = Math.max(newest, state.lastSnapshotAt);
     }
 
-    this.meshes.clear();
+    if (newest === 0) {
+      return null;
+    }
+
+    return Math.max(0, performance.now() - newest);
+  }
+
+  dispose(): void {
+    for (const state of this.players.values()) {
+      state.mesh.dispose();
+    }
+
+    this.players.clear();
   }
 
   private createMesh(player: ClientPlayerSnapshot): Mesh {

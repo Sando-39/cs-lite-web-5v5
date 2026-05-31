@@ -123,10 +123,11 @@ export class ClientGame {
       this.lastMoveSentAt = now;
     }
 
-    this.remotePlayers?.update(
+    this.remotePlayers?.updateTargets(
       this.network.getPlayersSnapshot(),
       this.network.sessionId
     );
+    this.remotePlayers?.render();
 
     this.scene.render();
   }
@@ -176,10 +177,7 @@ export class ClientGame {
       return;
     }
 
-    const players = this.network.getPlayersSnapshot();
-    const remoteCount = players.filter(
-      (player) => player.sessionId !== this.network.sessionId
-    ).length;
+    const remoteCount = this.remotePlayers?.getRemotePlayerCount() ?? 0;
 
     status.textContent =
       remoteCount > 0 ? "另一名玩家已加入。" : "等待另一名玩家加入。";
