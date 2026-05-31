@@ -6,6 +6,8 @@ import {
 import { resolveMapMovement } from "../../shared/collision";
 import type { MoveMessage } from "../../shared/types";
 
+export type FireCallback = () => void;
+
 export type LocalTransform = MoveMessage;
 
 export class InputController {
@@ -15,12 +17,18 @@ export class InputController {
   private pitch = 0;
   private position = new Vector3(0, CAMERA_HEIGHT, 0);
   private isPointerLocked = false;
+  private onFire: FireCallback;
 
-  constructor(canvas: HTMLCanvasElement, initial: MoveMessage) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    initial: MoveMessage,
+    onFire: FireCallback = () => undefined
+  ) {
     this.canvas = canvas;
     this.position.set(initial.x, CAMERA_HEIGHT, initial.z);
     this.yaw = initial.rotationY;
     this.pitch = initial.pitch ?? 0;
+    this.onFire = onFire;
   }
 
   attach(): void {
@@ -28,6 +36,7 @@ export class InputController {
     window.addEventListener("keyup", this.handleKeyUp);
     window.addEventListener("mousemove", this.handleMouseMove);
     document.addEventListener("pointerlockchange", this.handlePointerLockChange);
+    window.addEventListener("mousedown", this.handleMouseDown);
 
     this.canvas.addEventListener("click", this.requestPointerLock);
   }
@@ -37,6 +46,7 @@ export class InputController {
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("mousemove", this.handleMouseMove);
     document.removeEventListener("pointerlockchange", this.handlePointerLockChange);
+    window.removeEventListener("mousedown", this.handleMouseDown);
     this.canvas.removeEventListener("click", this.requestPointerLock);
   }
 
@@ -108,5 +118,11 @@ export class InputController {
 
   private handlePointerLockChange = (): void => {
     this.isPointerLocked = document.pointerLockElement === this.canvas;
+  };
+
+  private handleMouseDown = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    if (!this.isPointerLocked) return;
+    this.onFire();
   };
 }

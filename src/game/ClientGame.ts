@@ -73,7 +73,9 @@ export class ClientGame {
     this.camera.fov = 1.1;
 
     const initial = this.getInitialLocalTransform();
-    this.input = new InputController(canvas, initial);
+    this.input = new InputController(canvas, initial, () => {
+      this.network.sendFire(performance.now());
+    });
     this.input.attach();
 
     this.remotePlayers = new RemotePlayerView(this.scene);
