@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { FireResultMessage } from "../../shared/types";
+import type { FireResultMessage, WeaponFireResult } from "../../shared/types";
 import {
   calculatePingEstimateMs,
   formatFireResultMessage,
+  formatWeaponFireResultMessage,
   getColyseusEndpoint,
   mapJoinErrorToMessage
 } from "../../src/network/NetworkClient";
@@ -84,5 +85,15 @@ describe("NetworkClient helpers", () => {
       damage: 25, targetHp: 75, targetKilled: false, reason: "hit"
     };
     expect(formatFireResultMessage(result, "a")).toBeNull();
+  });
+
+  it("formats local weapon hit result", () => {
+    const result: WeaponFireResult = { shooterSessionId: "a", weaponId: "ar4", accepted: true, reason: "fired", ammoInMag: 29, reserveAmmo: 90, hit: true, targetType: "ai", targetId: "ai-1", damage: 24, targetHp: 76, targetKilled: false };
+    expect(formatWeaponFireResultMessage(result, "a")).toBe("AR-4 命中 +24，目标 HP: 76");
+  });
+
+  it("formats empty mag result", () => {
+    const result: WeaponFireResult = { shooterSessionId: "a", weaponId: "ar4", accepted: false, reason: "empty_mag", ammoInMag: 0, reserveAmmo: 90, hit: false, targetType: null, targetId: null, damage: 0, targetHp: null, targetKilled: false };
+    expect(formatWeaponFireResultMessage(result, "a")).toBe("弹匣为空，按 R 换弹");
   });
 });

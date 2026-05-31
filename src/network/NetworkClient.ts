@@ -1,6 +1,7 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME } from "../../shared/constants";
-import type { ClientPlayerSnapshot, FireResultMessage, MoveMessage, TargetSnapshot } from "../../shared/types";
+import type { AiEventMessage, ClientPlayerSnapshot, FireResultMessage, MoveMessage, PlayerDamagedMessage, PlayerWeaponSnapshot, ReloadResult, TargetSnapshot, WeaponFireResult } from "../../shared/types";
+import { WEAPONS, type WeaponId } from "../../shared/weapons";
 
 export type EndpointInput = {
   isDev: boolean;
@@ -48,12 +49,29 @@ export function formatFireResultMessage(result: FireResultMessage, localSessionI
   return `命中 +${result.damage}，目标 HP: ${result.targetHp ?? "-"}`;
 }
 
+export function formatWeaponFireResultMessage(result: WeaponFireResult, localSessionId: string | null): string | null {
+  if (result.shooterSessionId !== localSessionId) return null;
+  const weaponName = WEAPONS[result.weaponId]?.name ?? result.weaponId;
+  if (!result.accepted) {
+    if (result.reason === "empty_mag") return "弹匣为空，按 R 换弹";
+    if (result.reason === "reloading") return "正在换弹";
+    return null;
+  }
+  if (!result.hit) return `${weaponName} 未命中`;
+  if (result.targetKilled) return `${weaponName} 命中 +${result.damage}，目标已击倒`;
+  return `${weaponName} 命中 +${result.damage}，目标 HP: ${result.targetHp ?? "-"}`;
+}
+
 export type NetworkClientEvents = {
   onStatusChange(status: ConnectionStatus): void;
   onError(message: string): void;
   onPlayerLeft(sessionId: string): void;
   onFireResult(result: FireResultMessage): void;
   onTargetRespawned(targetId: string): void;
+  onWeaponFireResult(result: WeaponFireResult): void;
+  onReloadResult(result: ReloadResult): void;
+  onPlayerDamaged(message: PlayerDamagedMessage): void;
+  onAiEvent(message: AiEventMessage): void;
 };
 
 export class NetworkClient {
@@ -131,6 +149,21 @@ export class NetworkClient {
     this.room.send("fire", { clientTime });
   }
 
+  sendWeaponFire(weaponId: WeaponId, clientTime: number): void {
+    if (!this.room || this.currentStatus !== "connected") return;
+    this.room.send("weaponFire", { weaponId, clientTime });
+  }
+
+  sendReload(weaponId: WeaponId, clientTime: number): void {
+    if (!this.room || this.currentStatus !== "connected") return;
+    this.room.send("reload", { weaponId, clientTime });
+  }
+
+  sendSwitchWeapon(weaponId: WeaponId, clientTime: number): void {
+    if (!this.room || this.currentStatus !== "connected") return;
+    this.room.send("switchWeapon", { weaponId, clientTime });
+  }
+
   getPlayersSnapshot(): ClientPlayerSnapshot[] {
     const players = this.room?.state?.players;
 
@@ -189,6 +222,33 @@ export class NetworkClient {
     return result;
   }
 
+  getLocalWeaponSnapshots(): PlayerWeaponSnapshot[] {
+    const localSessionId = this.sessionId;
+    const players = this.room?.state?.players;
+    if (!localSessionId || !players) return [];
+    const player = players.get(localSessionId);
+    if (!player?.weapons || typeof player.weapons.forEach !== "function") return [];
+    const result: PlayerWeaponSnapshot[] = [];
+    player.weapons.forEach((weapon: Record<string, unknown>) => {
+      if ((weapon.weaponId === "ar4" || weapon.weaponId === "r47") && typeof weapon.ammoInMag === "number" && typeof weapon.reserveAmmo === "number" && typeof weapon.isReloading === "boolean" && typeof weapon.reloadEndsAt === "number" && typeof weapon.nextFireAt === "number" && typeof weapon.currentSpread === "number" && typeof weapon.recoilIndex === "number") {
+        result.push({ weaponId: weapon.weaponId, ammoInMag: weapon.ammoInMag, reserveAmmo: weapon.reserveAmmo, isReloading: weapon.isReloading, reloadEndsAt: weapon.reloadEndsAt, nextFireAt: weapon.nextFireAt, currentSpread: weapon.currentSpread, recoilIndex: weapon.recoilIndex });
+      }
+    });
+    return result;
+  }
+
+  getAiEnemiesSnapshot(): Array<{ id: string; name: string; x: number; y: number; z: number; rotationY: number; hp: number; maxHp: number; alive: boolean; state: string }> {
+    const aiEnemies = this.room?.state?.aiEnemies;
+    if (!aiEnemies || typeof aiEnemies.forEach !== "function") return [];
+    const result: Array<{ id: string; name: string; x: number; y: number; z: number; rotationY: number; hp: number; maxHp: number; alive: boolean; state: string }> = [];
+    aiEnemies.forEach((ai: Record<string, unknown>) => {
+      if (typeof ai.id === "string" && typeof ai.name === "string" && typeof ai.x === "number" && typeof ai.y === "number" && typeof ai.z === "number" && typeof ai.rotationY === "number" && typeof ai.hp === "number" && typeof ai.maxHp === "number" && typeof ai.alive === "boolean" && typeof ai.state === "string") {
+        result.push({ id: ai.id, name: ai.name, x: ai.x, y: ai.y, z: ai.z, rotationY: ai.rotationY, hp: ai.hp, maxHp: ai.maxHp, alive: ai.alive, state: ai.state });
+      }
+    });
+    return result;
+  }
+
   setFireResultHandler(handler: (result: FireResultMessage) => void): void {
     this.events.onFireResult = handler;
   }
@@ -196,6 +256,11 @@ export class NetworkClient {
   setTargetRespawnedHandler(handler: (targetId: string) => void): void {
     this.events.onTargetRespawned = handler;
   }
+
+  setWeaponFireResultHandler(handler: (result: WeaponFireResult) => void): void { this.events.onWeaponFireResult = handler; }
+  setReloadResultHandler(handler: (result: ReloadResult) => void): void { this.events.onReloadResult = handler; }
+  setPlayerDamagedHandler(handler: (message: PlayerDamagedMessage) => void): void { this.events.onPlayerDamaged = handler; }
+  setAiEventHandler(handler: (message: AiEventMessage) => void): void { this.events.onAiEvent = handler; }
 
   leave(): void {
     if (this.room) {
@@ -241,6 +306,11 @@ export class NetworkClient {
           this.events.onTargetRespawned(message.targetId);
         }
       });
+
+      room.onMessage("weaponFireResult", (message: WeaponFireResult) => { this.events.onWeaponFireResult(message); });
+      room.onMessage("reloadResult", (message: ReloadResult) => { this.events.onReloadResult(message); });
+      room.onMessage("playerDamaged", (message: PlayerDamagedMessage) => { this.events.onPlayerDamaged(message); });
+      room.onMessage("aiEvent", (message: AiEventMessage) => { this.events.onAiEvent(message); });
     } catch (error) {
       this.room = null;
       this.setStatus("idle");

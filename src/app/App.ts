@@ -24,7 +24,11 @@ export class App {
       },
       onPlayerLeft: () => undefined,
       onFireResult: () => undefined,
-      onTargetRespawned: () => undefined
+      onTargetRespawned: () => undefined,
+      onWeaponFireResult: () => undefined,
+      onReloadResult: () => undefined,
+      onPlayerDamaged: () => undefined,
+      onAiEvent: () => undefined
     });
   }
 
