@@ -283,4 +283,5 @@ input:focus {
 .weapon-ammo { font-size: 34px; font-weight: 900; line-height: 1; margin-top: 6px; }
 .weapon-status, .player-hp { color: #cbd5e1; font-size: 13px; margin-top: 6px; }
 
-.ai-hp { position: relative; z-index: 3; display: inline-block; margin: 4px; border: 1px solid rgba(251,191,36,0.45); border-radius: 999px; background: rgba(120,53,15,0.75); color: #fef3c7; font-size: 12px; font-weight: 800; padding: 6px 10px; }
+.ai-hp { position: relative; z-index: 3; display: inline-block; margin: 4px; border: 1px solid rgba(239,68,68,0.55); border-radius: 999px; background: rgba(127,29,29,0.8); color: #fecaca; font-size: 12px; font-weight: 800; padding: 6px 10px; }
+.ai-hp.target-dead { border-color: rgba(148,163,184,0.45); background: rgba(51,65,85,0.78); color: #cbd5e1; }

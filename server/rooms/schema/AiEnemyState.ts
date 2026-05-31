@@ -19,6 +19,8 @@ export class AiEnemyState extends Schema {
   @type("number") nextShotAt = 0;
   @type("number") respawnAt = 0;
   @type("number") respawnDelayMs = AI_RESPAWN_DELAY_MS;
+  @type("string") faction = "enemy";
+  @type("boolean") damageable = true;
 
   applyConfig(config: AiEnemyConfig): void {
     this.id = config.id; this.name = config.name;
@@ -26,6 +28,8 @@ export class AiEnemyState extends Schema {
     this.rotationY = config.rotationY; this.hp = AI_MAX_HP; this.maxHp = AI_MAX_HP;
     this.alive = true; this.state = "patrol"; this.patrolIndex = 0;
     this.targetSessionId = ""; this.nextShotAt = 0; this.respawnAt = 0;
+    this.faction = config.faction;
+    this.damageable = config.damageable;
   }
 }
 

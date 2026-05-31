@@ -31,12 +31,12 @@ export class AiEnemyView {
       state.mesh.rotation.y = enemy.rotationY;
 
       state.material.diffuseColor = enemy.alive
-        ? (enemy.state === "attack" ? new Color3(1, 0.22, 0.16) : new Color3(0.9, 0.65, 0.2))
-        : new Color3(0.35, 0.35, 0.35);
+        ? (enemy.state === "attack" ? new Color3(1, 0.12, 0.08) : new Color3(1, 0.35, 0.18))
+        : new Color3(0.3, 0.3, 0.3);
 
       state.hpLabel.textContent = enemy.alive
-        ? `${enemy.name}: ${enemy.hp}/${enemy.maxHp} ${enemy.state}`
-        : `${enemy.name}: DEAD`;
+        ? `ENEMY ${enemy.name}: ${enemy.hp}/${enemy.maxHp}`
+        : `DEAD ${enemy.name}`;
       state.hpLabel.classList.toggle("target-dead", !enemy.alive);
     }
     for (const [id, state] of this.enemies.entries()) { if (!ids.has(id)) { state.mesh.dispose(); state.hpLabel.remove(); this.enemies.delete(id); } }

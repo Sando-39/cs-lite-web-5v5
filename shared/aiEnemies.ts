@@ -5,15 +5,20 @@ export type AiWaypoint = { x: number; z: number };
 
 export type AiEnemyConfig = {
   id: string; name: string; spawn: AiWaypoint; rotationY: number; waypoints: readonly AiWaypoint[];
+  faction: "enemy";
+  damageable: true;
 };
 
 export const AI_ENEMIES: readonly AiEnemyConfig[] = [
   { id: "ai-1", name: "Patrol One", spawn: { x: -10, z: -12 }, rotationY: 0,
-    waypoints: [{ x: -10, z: -12 }, { x: -4, z: -14 }, { x: -2, z: -8 }] },
+    waypoints: [{ x: -10, z: -12 }, { x: -4, z: -14 }, { x: -2, z: -8 }],
+    faction: "enemy" as const, damageable: true as const },
   { id: "ai-2", name: "Patrol Two", spawn: { x: 10, z: -12 }, rotationY: Math.PI,
-    waypoints: [{ x: 10, z: -12 }, { x: 4, z: -14 }, { x: 2, z: -8 }] },
+    waypoints: [{ x: 10, z: -12 }, { x: 4, z: -14 }, { x: 2, z: -8 }],
+    faction: "enemy" as const, damageable: true as const },
   { id: "ai-3", name: "Patrol Three", spawn: { x: 0, z: 12 }, rotationY: Math.PI,
-    waypoints: [{ x: 0, z: 12 }, { x: -6, z: 8 }, { x: 6, z: 8 }] }
+    waypoints: [{ x: 0, z: 12 }, { x: -6, z: 8 }, { x: 6, z: 8 }],
+    faction: "enemy" as const, damageable: true as const }
 ];
 
 export function getAiSpawnY(): number { return CAMERA_HEIGHT; }
