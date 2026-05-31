@@ -10,6 +10,8 @@ import { STATIC_TARGETS } from "../../shared/staticTargets.js";
 import { GameState } from "./schema/GameState.js";
 import { createPlayerState } from "./schema/PlayerState.js";
 import { createTargetState } from "./schema/TargetState.js";
+import { AI_ENEMIES } from "../../shared/aiEnemies.js";
+import { createAiEnemyState } from "./schema/AiEnemyState.js";
 import { applyTargetDamage, createShotRay, intersectRayWithStaticTarget, respawnTargetIfReady } from "../logic/combat.js";
 
 type PingMessage = {
@@ -29,6 +31,10 @@ export class GameRoom extends Room<{ state: GameState }> {
 
     for (const targetConfig of STATIC_TARGETS) {
       this.state.targets.set(targetConfig.id, createTargetState(targetConfig));
+    }
+
+    for (const aiConfig of AI_ENEMIES) {
+      this.state.aiEnemies.set(aiConfig.id, createAiEnemyState(aiConfig));
     }
 
     this.onMessage("move", (client, message: unknown) => {

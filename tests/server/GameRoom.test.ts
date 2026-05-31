@@ -191,4 +191,12 @@ describe("GameRoom", () => {
     expect(player?.maxHp).toBe(100);
     expect(player?.activeWeaponId).toBe("ar4");
   });
+
+  it("initializes three patrol AI enemies", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    expect(room.state.aiEnemies.size).toBe(3);
+    expect(room.state.aiEnemies.get("ai-1")?.state).toBe("patrol");
+    expect(room.state.aiEnemies.get("ai-1")?.hp).toBe(100);
+  });
 });
