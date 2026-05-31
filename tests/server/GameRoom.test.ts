@@ -88,6 +88,16 @@ describe("GameRoom", () => {
     expect(room.state.players.get("a")?.x).toBe(before);
   });
 
+  it("initializes the static target on room create", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const target = room.state.targets.get("target-1");
+    expect(target).toBeDefined();
+    expect(target?.name).toBe("Training Dummy");
+    expect(target?.hp).toBe(100);
+    expect(target?.alive).toBe(true);
+  });
+
   it("creates a pong payload from a ping payload", () => {
     const room = new GameRoom();
     const pong = room.createPongForTest({ clientTime: 123 });

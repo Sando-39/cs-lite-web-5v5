@@ -5,8 +5,10 @@ import {
   normalizeMoveMessage,
   validateAndClampMove
 } from "../logic/movement.js";
+import { STATIC_TARGETS } from "../../shared/staticTargets.js";
 import { GameState } from "./schema/GameState.js";
 import { createPlayerState } from "./schema/PlayerState.js";
+import { createTargetState } from "./schema/TargetState.js";
 
 type PingMessage = {
   clientTime?: unknown;
@@ -22,6 +24,10 @@ export class GameRoom extends Room<{ state: GameState }> {
 
   onCreate(): void {
     this.setState(new GameState());
+
+    for (const targetConfig of STATIC_TARGETS) {
+      this.state.targets.set(targetConfig.id, createTargetState(targetConfig));
+    }
 
     this.onMessage("move", (client, message: unknown) => {
       this.handleMove(client.sessionId, message);
