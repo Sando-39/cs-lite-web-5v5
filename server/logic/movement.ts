@@ -2,9 +2,9 @@ import {
   CAMERA_HEIGHT,
   MAP_HALF_SIZE,
   MAX_SERVER_MOVE_SPEED_UNITS_PER_SECOND
-} from "../../shared/constants";
-import { resolveMapMovement } from "../../shared/collision";
-import type { MoveMessage, ServerPlayerRecord } from "../../shared/types";
+} from "../../shared/constants.js";
+import { resolveMapMovement } from "../../shared/collision.js";
+import type { MoveMessage, ServerPlayerRecord } from "../../shared/types.js";
 
 export type ValidatedMove = {
   accepted: boolean;

@@ -1,5 +1,5 @@
-import { MAP_HALF_SIZE, PLAYER_COLLISION_RADIUS } from "./constants";
-import { MAP_COLLIDERS, type AabbCollider } from "./mapGeometry";
+import { MAP_HALF_SIZE, PLAYER_COLLISION_RADIUS } from "./constants.js";
+import { MAP_COLLIDERS, type AabbCollider } from "./mapGeometry.js";
 
 export type Point2 = {
   x: number;
