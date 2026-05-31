@@ -6,7 +6,7 @@ import {
 } from "@babylonjs/core";
 import { CAMERA_HEIGHT, MOVE_SEND_HZ, PING_INTERVAL_MS } from "../../shared/constants";
 import type { MoveMessage } from "../../shared/types";
-import { formatFireResultMessage } from "../network/NetworkClient";
+import { formatFireResultMessage, formatWeaponFireResultMessage } from "../network/NetworkClient";
 import { NetworkClient } from "../network/NetworkClient";
 import { HitFeedback } from "./HitFeedback";
 import { InputController } from "./InputController";
@@ -39,7 +39,9 @@ export class ClientGame {
   private weaponHud: WeaponHud | null = null;
   private aiEnemyView: AiEnemyView | null = null;
   private reloadProgress: ReloadProgress | null = null;
+  private tracerview: TracerView | null = null;
   private gameAudio = new GameAudio();
+  private damagePunch = 0;
   private lastMoveSentAt = 0;
   private lastPingSentAt = 0;
   private currentTransform: MoveMessage = {
@@ -92,6 +94,8 @@ export class ClientGame {
 
     this.weaponView = new WeaponView(this.scene);
 
+    this.tracerView = new TracerView(this.scene);
+
     this.reloadProgress = new ReloadProgress(this.root);
 
     const initial = this.getInitialLocalTransform();
@@ -99,7 +103,7 @@ export class ClientGame {
       onFireHeld: () => {
         this.network.sendWeaponFire(this.activeWeaponId, performance.now());
       },
-      onReload: () => { this.network.sendReload(this.activeWeaponId, performance.now()); this.weaponView?.playReload(); this.gameAudio.playReload(); },
+      onReload: () => { this.network.sendReload(this.activeWeaponId, performance.now()); this.gameAudio.playReload(); },
       onSwitchWeapon: (weaponId) => { this.activeWeaponId = weaponId; this.network.sendSwitchWeapon(weaponId, performance.now()); this.weaponView?.setActiveWeapon(weaponId); }
     });
     this.input.attach();
@@ -122,14 +126,38 @@ export class ClientGame {
     });
     this.network.setWeaponFireResultHandler((result) => {
       if (result.accepted && result.reason === "fired") {
-        this.weaponView?.playFire(result.weaponId);
+        this.weaponView?.playAcceptedFire(result.weaponId);
         this.gameAudio.playFire(result.weaponId);
+        if (result.tracerStart && result.tracerEnd) {
+          this.tracerView?.spawn(result.tracerStart, result.tracerEnd, result.weaponId);
+        }
+        if (result.hit) this.gameAudio.playHit();
+        const msg = formatWeaponFireResultMessage(result, this.network.sessionId);
+        if (msg) this.hitFeedback?.show(msg);
       } else if (result.reason === "empty_mag") {
+        this.weaponView?.playEmptyClick();
         this.gameAudio.playEmpty();
+        this.hitFeedback?.show("弹匣为空，按 R 换弹");
+      } else if (result.reason === "reloading") {
+        this.hitFeedback?.show("正在换弹");
       }
     });
     this.network.setTargetRespawnedHandler(() => {
       this.hitFeedback?.show("假人已复活");
+    });
+
+    this.network.setReloadResultHandler((result) => {
+      if (result.started) {
+        this.weaponView?.playReloadStart(result.reloadEndsAt - performance.now());
+      }
+    });
+
+    this.network.setPlayerDamagedHandler((message) => {
+      if (message.sessionId === this.network.sessionId) {
+        this.damagePunch = 0.08;
+        this.gameAudio.playDamage();
+        this.hitFeedback?.show(`受到 ${message.damage} 点伤害，HP: ${message.hp}`);
+      }
     });
 
     this.debugHud = new DebugHud(this.root);
@@ -153,6 +181,8 @@ export class ClientGame {
     this.hitFeedback = null;
     this.weaponView?.dispose();
     this.weaponView = null;
+    this.tracerView?.dispose();
+    this.tracerView = null;
     this.weaponHud?.dispose();
     this.weaponHud = null;
     this.reloadProgress?.dispose();
@@ -183,20 +213,22 @@ export class ClientGame {
       CAMERA_HEIGHT,
       this.currentTransform.z
     );
-    this.camera.rotation.x = this.input.getPitch();
     this.camera.rotation.y = this.currentTransform.rotationY;
 
-    const offsets = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY);
-    if (offsets) {
-      this.camera.rotation.x += offsets.pitchOffset;
-      this.camera.rotation.y += offsets.yawOffset;
-    }
+    const now = performance.now();
+    const weaponPunch = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY, deltaSeconds);
+    // Apply visual recoil punch on top of real aim, but DON'T modify real pitch
+    this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) + this.damagePunch;
+    this.camera.rotation.y += weaponPunch?.yawPunch ?? 0;
+
+    // Recover damage punch
+    this.damagePunch = this.damagePunch > 0.001 ? this.damagePunch * 0.88 : 0;
+
+    this.tracerView?.update(now);
 
     this.updateConnectionStatus();
     this.updatePointerHelp();
     this.updatePeerStatus();
-
-    const now = performance.now();
     const sendIntervalMs = 1000 / MOVE_SEND_HZ;
 
     if (now - this.lastMoveSentAt >= sendIntervalMs) {

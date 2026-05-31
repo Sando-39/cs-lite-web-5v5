@@ -97,6 +97,8 @@ export type WeaponFireResult = {
   reason: WeaponFireResultReason; ammoInMag: number; reserveAmmo: number;
   hit: boolean; targetType: "ai" | "static_target" | null;
   targetId: string | null; damage: number; targetHp: number | null; targetKilled: boolean;
+  tracerStart?: { x: number; y: number; z: number } | null;
+  tracerEnd?: { x: number; y: number; z: number } | null;
 };
 
 export type ReloadResultReason = "started" | "full_mag" | "no_reserve" | "already_reloading" | "invalid_weapon";
