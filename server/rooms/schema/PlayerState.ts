@@ -1,5 +1,8 @@
-import { Schema, type } from "@colyseus/schema";
+import { MapSchema, Schema, type } from "@colyseus/schema";
 import type { PlayerColor, ServerPlayerRecord } from "../../../shared/types.js";
+import type { WeaponId } from "../../../shared/weapons.js";
+import { DEFAULT_WEAPON_ID } from "../../../shared/weapons.js";
+import { PlayerWeaponState } from "./PlayerWeaponState.js";
 
 export class PlayerState extends Schema {
   @type("string") sessionId = "";
@@ -11,6 +14,11 @@ export class PlayerState extends Schema {
   @type("number") pitch = 0;
   @type("string") color: PlayerColor = "blue";
   @type("number") lastMoveAt = 0;
+  @type("number") hp = 100;
+  @type("number") maxHp = 100;
+  @type("number") lastDamagedAt = 0;
+  @type("string") activeWeaponId: WeaponId = DEFAULT_WEAPON_ID;
+  @type({ map: PlayerWeaponState }) weapons = new MapSchema<PlayerWeaponState>();
 
   applyRecord(record: ServerPlayerRecord): void {
     this.sessionId = record.sessionId;
@@ -22,6 +30,10 @@ export class PlayerState extends Schema {
     this.pitch = record.pitch;
     this.color = record.color;
     this.lastMoveAt = record.lastMoveAt;
+    this.hp = record.hp;
+    this.maxHp = record.maxHp;
+    this.lastDamagedAt = record.lastDamagedAt;
+    this.activeWeaponId = record.activeWeaponId;
   }
 }
 

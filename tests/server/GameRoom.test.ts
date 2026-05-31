@@ -181,4 +181,14 @@ describe("GameRoom", () => {
     expect(target!.alive).toBe(true);
     expect(target!.respawnAt).toBe(0);
   });
+
+  it("initializes player hp and active weapon on join", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const player = room.state.players.get("a");
+    expect(player?.hp).toBe(100);
+    expect(player?.maxHp).toBe(100);
+    expect(player?.activeWeaponId).toBe("ar4");
+  });
 });

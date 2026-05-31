@@ -131,7 +131,11 @@ export class GameRoom extends Room<{ state: GameState }> {
         rotationY: player.rotationY,
         pitch: player.pitch,
         color: player.color,
-        lastMoveAt: player.lastMoveAt
+        lastMoveAt: player.lastMoveAt,
+        hp: player.hp,
+        maxHp: player.maxHp,
+        lastDamagedAt: player.lastDamagedAt,
+        activeWeaponId: player.activeWeaponId
       },
       move,
       Date.now()

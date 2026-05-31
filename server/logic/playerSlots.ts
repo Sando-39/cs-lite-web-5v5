@@ -1,5 +1,6 @@
-import { MAX_PLAYERS } from "../../shared/constants.js";
+import { MAX_PLAYERS, PLAYER_MAX_HP } from "../../shared/constants.js";
 import type { ServerPlayerRecord } from "../../shared/types.js";
+import { DEFAULT_WEAPON_ID } from "../../shared/weapons.js";
 import { SPAWN_POINTS, type SpawnPoint } from "../config/spawns.js";
 
 export function canAcceptPlayer(currentPlayerCount: number): boolean {
@@ -36,6 +37,7 @@ export function createPlayerRecord(
     rotationY: spawn.rotationY,
     pitch: 0,
     color: spawn.color,
-    lastMoveAt: now
+    lastMoveAt: now,
+    hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP, lastDamagedAt: 0, activeWeaponId: DEFAULT_WEAPON_ID
   };
 }
