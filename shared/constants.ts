@@ -5,3 +5,7 @@ export const MAX_SERVER_MOVE_SPEED_UNITS_PER_SECOND = 9;
 export const MOVE_SEND_HZ = 20;
 export const MAP_HALF_SIZE = 24;
 export const CAMERA_HEIGHT = 1.7;
+export const PLAYER_COLLISION_RADIUS = 0.45;
+export const REMOTE_POSITION_LERP_ALPHA = 0.18;
+export const REMOTE_ROTATION_LERP_ALPHA = 0.2;
+export const PING_INTERVAL_MS = 2000;
