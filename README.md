@@ -1,6 +1,6 @@
-# CS-Lite Web v0.1
+# CS-Lite Web v0.2
 
-A browser-based multiplayer 3D skeleton.
+A browser-based multiplayer 3D skeleton with collision, interpolation, and debug tools.
 
 ## v0.1 Scope
 
@@ -12,15 +12,27 @@ A browser-based multiplayer 3D skeleton.
 - Colyseus state sync
 - Render Free deployment
 
-## Not Included in v0.1
+## v0.2 Scope
+
+- Remote player position and rotation interpolation
+- Shared map collision geometry
+- Client-side wall and cover collision with axis sliding
+- Server-side collision validation
+- Lightweight ping estimation
+- Toggleable F3 Debug HUD
+
+## Not Included
 
 - Shooting
+- Hit detection
 - AI
 - Rounds
 - Scoring
 - 5v5
 - Database
 - Accounts
+- Health / Death / Respawn
+- Weapons
 
 ## Local Development
 
