@@ -110,3 +110,16 @@ export type ReloadResult = {
 
 export type PlayerDamagedMessage = { sessionId: string; damage: number; hp: number; source: "ai"; sourceId: string };
 export type AiEventMessage = { aiId: string; type: "damaged" | "killed" | "respawned" | "fired" };
+
+export type ServerDebugStatsMessage = {
+  serverTime: number;
+  tickMs: number;
+  aiUpdateMs: number;
+  fireProcessingMs: number;
+  playerCount: number;
+  aiCount: number;
+  aliveAiCount: number;
+  fireAcceptedPerSecond: number;
+  fireRejectedPerSecond: number;
+  statePatchHz: number | null;
+};

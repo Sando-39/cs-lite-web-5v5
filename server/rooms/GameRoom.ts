@@ -30,6 +30,13 @@ type PongMessage = {
 export class GameRoom extends Room<{ state: GameState }> {
   maxClients = MAX_PLAYERS;
 
+  private lastTickMs = 0;
+  private lastAiUpdateMs = 0;
+  private lastFireProcessingMs = 0;
+  private fireAcceptedCounter = 0;
+  private fireRejectedCounter = 0;
+  private lastServerStatsBroadcastAt = 0;
+
   onCreate(): void {
     this.setState(new GameState());
 
@@ -64,14 +71,23 @@ export class GameRoom extends Room<{ state: GameState }> {
 
     let lastSimAt = Date.now();
     this.setSimulationInterval(() => {
+      const tickStart = performance.now();
       const now = Date.now();
       const deltaSeconds = (now - lastSimAt) / 1000;
       lastSimAt = now;
       this.completeReloads(now);
       this.recoverWeaponSpread(deltaSeconds);
+      const aiStart = performance.now();
       this.updateAiEnemies(now, deltaSeconds);
+      this.lastAiUpdateMs = performance.now() - aiStart;
       this.regeneratePlayers(now, deltaSeconds);
       this.respawnTargetsIfReady(now);
+      this.lastTickMs = performance.now() - tickStart;
+
+      if (now - this.lastServerStatsBroadcastAt >= 1000) {
+        this.lastServerStatsBroadcastAt = now;
+        this.broadcastServerDebugStats(now);
+      }
     }, 250);
   }
 
@@ -260,17 +276,23 @@ export class GameRoom extends Room<{ state: GameState }> {
   handleWeaponFireForTest(sessionId: string, message: unknown, now: number): WeaponFireResult | null { return this.handleWeaponFire(sessionId, message, now); }
 
   private handleWeaponFire(sessionId: string, message: unknown, now: number): WeaponFireResult | null {
+    const fireStart = performance.now();
     const normalized = this.normalizeWeaponFireMessage(message);
     const player = this.state.players.get(sessionId);
-    if (!normalized || !player) return null;
+    if (!normalized || !player) { this.lastFireProcessingMs = performance.now() - fireStart; return null; }
     const weapon = player.weapons.get(normalized.weaponId);
-    if (!weapon) return null;
+    if (!weapon) { this.lastFireProcessingMs = performance.now() - fireStart; return null; }
     const canFire = canFireWeapon(weapon.toSnapshot(), normalized.weaponId, now);
     if (!canFire.allowed) {
+      this.fireRejectedCounter++;
       const rejected: WeaponFireResult = { shooterSessionId: sessionId, weaponId: normalized.weaponId, accepted: false, reason: canFire.reason, ammoInMag: weapon.ammoInMag, reserveAmmo: weapon.reserveAmmo, hit: false, targetType: null, targetId: null, damage: 0, targetHp: null, targetKilled: false };
-      this.broadcast("weaponFireResult", rejected);
+      if (canFire.reason !== "cooldown") {
+        this.broadcast("weaponFireResult", rejected);
+      }
+      this.lastFireProcessingMs = performance.now() - fireStart;
       return rejected;
     }
+    this.fireAcceptedCounter++;
     const updatedWeapon = updateWeaponAfterAcceptedFire(weapon.toSnapshot(), normalized.weaponId, now);
     weapon.applySnapshot(updatedWeapon);
     const weaponConfig = getWeaponConfig(normalized.weaponId);
@@ -293,6 +315,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     }
     const result: WeaponFireResult = { shooterSessionId: sessionId, weaponId: normalized.weaponId, accepted: true, reason: "fired", ammoInMag: weapon.ammoInMag, reserveAmmo: weapon.reserveAmmo, hit: hitAiId !== null, targetType: hitAiId ? "ai" : null, targetId: hitAiId, damage: hitAiId ? weaponConfig.damage : 0, targetHp, targetKilled };
     this.broadcast("weaponFireResult", result);
+    this.lastFireProcessingMs = performance.now() - fireStart;
     return result;
   }
 
@@ -355,6 +378,24 @@ export class GameRoom extends Room<{ state: GameState }> {
       const patrol = updateAiPatrolPosition({ x: ai.x, z: ai.z, patrolIndex: ai.patrolIndex }, config.waypoints, AI_MOVE_SPEED_UNITS_PER_SECOND, deltaSeconds);
       ai.x = patrol.x; ai.z = patrol.z; ai.rotationY = patrol.rotationY; ai.patrolIndex = patrol.patrolIndex;
     }
+  }
+
+  private broadcastServerDebugStats(now: number): void {
+    const stats = {
+      serverTime: now,
+      tickMs: Math.round(this.lastTickMs * 100) / 100,
+      aiUpdateMs: Math.round(this.lastAiUpdateMs * 100) / 100,
+      fireProcessingMs: Math.round(this.lastFireProcessingMs * 100) / 100,
+      playerCount: this.state.players.size,
+      aiCount: this.state.aiEnemies.size,
+      aliveAiCount: Array.from(this.state.aiEnemies.values()).filter(a => a.alive).length,
+      fireAcceptedPerSecond: this.fireAcceptedCounter,
+      fireRejectedPerSecond: this.fireRejectedCounter,
+      statePatchHz: null
+    };
+    this.fireAcceptedCounter = 0;
+    this.fireRejectedCounter = 0;
+    this.broadcast("serverDebugStats", stats);
   }
 
   private normalizeWeaponFireMessage(message: unknown): WeaponFireMessage | null {

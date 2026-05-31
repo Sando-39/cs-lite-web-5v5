@@ -1,6 +1,6 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME } from "../../shared/constants";
-import type { AiEventMessage, ClientPlayerSnapshot, FireResultMessage, MoveMessage, PlayerDamagedMessage, PlayerWeaponSnapshot, ReloadResult, TargetSnapshot, WeaponFireResult } from "../../shared/types";
+import type { AiEventMessage, ClientPlayerSnapshot, FireResultMessage, MoveMessage, PlayerDamagedMessage, PlayerWeaponSnapshot, ReloadResult, ServerDebugStatsMessage, TargetSnapshot, WeaponFireResult } from "../../shared/types";
 import { WEAPONS, type WeaponId } from "../../shared/weapons";
 
 export type EndpointInput = {
@@ -72,6 +72,7 @@ export type NetworkClientEvents = {
   onReloadResult(result: ReloadResult): void;
   onPlayerDamaged(message: PlayerDamagedMessage): void;
   onAiEvent(message: AiEventMessage): void;
+  onServerDebugStats(stats: ServerDebugStatsMessage): void;
 };
 
 export class NetworkClient {
@@ -265,6 +266,7 @@ export class NetworkClient {
   setReloadResultHandler(handler: (result: ReloadResult) => void): void { this.events.onReloadResult = handler; }
   setPlayerDamagedHandler(handler: (message: PlayerDamagedMessage) => void): void { this.events.onPlayerDamaged = handler; }
   setAiEventHandler(handler: (message: AiEventMessage) => void): void { this.events.onAiEvent = handler; }
+  setServerDebugStatsHandler(handler: (stats: ServerDebugStatsMessage) => void): void { this.events.onServerDebugStats = handler; }
 
   leave(): void {
     if (this.room) {
@@ -315,6 +317,7 @@ export class NetworkClient {
       room.onMessage("reloadResult", (message: ReloadResult) => { this.events.onReloadResult(message); });
       room.onMessage("playerDamaged", (message: PlayerDamagedMessage) => { this.events.onPlayerDamaged(message); });
       room.onMessage("aiEvent", (message: AiEventMessage) => { this.events.onAiEvent(message); });
+      room.onMessage("serverDebugStats", (message: ServerDebugStatsMessage) => { this.events.onServerDebugStats(message); });
     } catch (error) {
       this.room = null;
       this.setStatus("idle");

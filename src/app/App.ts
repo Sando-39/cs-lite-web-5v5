@@ -28,7 +28,8 @@ export class App {
       onWeaponFireResult: () => undefined,
       onReloadResult: () => undefined,
       onPlayerDamaged: () => undefined,
-      onAiEvent: () => undefined
+      onAiEvent: () => undefined,
+      onServerDebugStats: () => undefined
     });
   }
 
