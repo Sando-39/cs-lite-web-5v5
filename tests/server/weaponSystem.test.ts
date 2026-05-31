@@ -71,4 +71,36 @@ describe("weaponSystem", () => {
     const recovered = applySpreadRecovery(inventory.weapons.r47, "r47", 1);
     expect(recovered.currentSpread).toBeLessThan(0.05);
   });
+
+  it("rejects fire with empty mag and does not change ammo", () => {
+    const inventory = createInitialWeaponInventory();
+    inventory.weapons.ar4.ammoInMag = 0;
+    const result = canFireWeapon(inventory.weapons.ar4, "ar4", 1000);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("empty_mag");
+    // Ammo should still be 0
+    expect(inventory.weapons.ar4.ammoInMag).toBe(0);
+  });
+
+  it("preserves weapon damage config after reload", () => {
+    const inventory = createInitialWeaponInventory();
+    // Simulate shooting 28 rounds from AR-4
+    inventory.weapons.ar4.ammoInMag = 2;
+    const started = startReload(inventory.weapons.ar4, "ar4", 1000);
+    const completed = completeReloadIfReady(started.weapon, "ar4", 2900);
+    expect(completed.ammoInMag).toBe(30);
+    expect(completed.reserveAmmo).toBe(62);
+    expect(completed.isReloading).toBe(false);
+    expect(completed.weaponId).toBe("ar4"); // weaponId preserved
+  });
+
+  it("preserves R-47 damage config after reload", () => {
+    const inventory = createInitialWeaponInventory();
+    inventory.weapons.r47.ammoInMag = 5;
+    const started = startReload(inventory.weapons.r47, "r47", 1000);
+    const completed = completeReloadIfReady(started.weapon, "r47", 3200);
+    expect(completed.ammoInMag).toBe(30);
+    expect(completed.reserveAmmo).toBe(65);
+    expect(completed.weaponId).toBe("r47");
+  });
 });
