@@ -10,6 +10,7 @@ import { NetworkClient } from "../network/NetworkClient";
 import { InputController } from "./InputController";
 import { MapBuilder } from "./MapBuilder";
 import { RemotePlayerView } from "./RemotePlayerView";
+import { TargetView } from "./TargetView";
 import { DebugHud, type DebugSnapshot } from "./DebugHud";
 
 export class ClientGame {
@@ -20,6 +21,7 @@ export class ClientGame {
   private camera: FreeCamera | null = null;
   private input: InputController | null = null;
   private remotePlayers: RemotePlayerView | null = null;
+  private targetView: TargetView | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private debugHud: DebugHud | null = null;
   private lastMoveSentAt = 0;
@@ -80,6 +82,8 @@ export class ClientGame {
 
     this.remotePlayers = new RemotePlayerView(this.scene);
 
+    this.targetView = new TargetView(this.scene, this.root);
+
     this.debugHud = new DebugHud(this.root);
     this.debugHud.attach();
 
@@ -94,6 +98,7 @@ export class ClientGame {
     window.removeEventListener("resize", this.handleResize);
     this.input?.detach();
     this.remotePlayers?.dispose();
+    this.targetView?.dispose();
     this.debugHud?.detach();
     this.scene?.dispose();
     this.engine?.dispose();
@@ -102,6 +107,7 @@ export class ClientGame {
     this.camera = null;
     this.input = null;
     this.remotePlayers = null;
+    this.targetView = null;
     this.debugHud = null;
     this.canvas = null;
   }
@@ -141,6 +147,8 @@ export class ClientGame {
       this.network.sessionId
     );
     this.remotePlayers?.render();
+
+    this.targetView?.update(this.network.getTargetsSnapshot());
 
     this.debugHud?.render(this.createDebugSnapshot(now));
 
@@ -235,6 +243,8 @@ export class ClientGame {
 
   private createDebugSnapshot(now: number): DebugSnapshot {
     const players = this.network.getPlayersSnapshot();
+    const targets = this.network.getTargetsSnapshot();
+    const primaryTarget = targets[0] ?? null;
 
     return {
       roomId: this.network.roomId,
@@ -249,7 +259,10 @@ export class ClientGame {
       moveSendHzTarget: MOVE_SEND_HZ,
       lastMoveSentMsAgo: this.lastMoveSentAt > 0 ? now - this.lastMoveSentAt : null,
       remoteUpdateAgeMs: this.remotePlayers?.getNewestSnapshotAgeMs() ?? null,
-      pingEstimateMs: this.network.getPingEstimateMs()
+      pingEstimateMs: this.network.getPingEstimateMs(),
+      pitch: this.currentTransform.pitch,
+      targetHp: primaryTarget?.hp ?? null,
+      targetAlive: primaryTarget?.alive ?? null
     };
   }
 }

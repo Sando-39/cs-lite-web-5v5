@@ -14,6 +14,9 @@ export type DebugSnapshot = {
   lastMoveSentMsAgo: number | null;
   remoteUpdateAgeMs: number | null;
   pingEstimateMs: number | null;
+  pitch: number;
+  targetHp: number | null;
+  targetAlive: boolean | null;
 };
 
 export class DebugHud {
@@ -58,6 +61,9 @@ export class DebugHud {
         <dt>lastSend</dt><dd>${this.formatMs(snapshot.lastMoveSentMsAgo)}</dd>
         <dt>remoteAge</dt><dd>${this.formatMs(snapshot.remoteUpdateAgeMs)}</dd>
         <dt>ping</dt><dd>${this.formatMs(snapshot.pingEstimateMs)}</dd>
+        <dt>pitch</dt><dd>${snapshot.pitch.toFixed(3)}</dd>
+        <dt>targetHp</dt><dd>${snapshot.targetHp ?? "-"}</dd>
+        <dt>targetAlive</dt><dd>${snapshot.targetAlive === null ? "-" : String(snapshot.targetAlive)}</dd>
       </dl>
       <div class="debug-hint">F3 收起</div>
     `;
