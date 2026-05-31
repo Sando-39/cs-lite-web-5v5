@@ -1,6 +1,17 @@
-# CS-Lite Web v0.2
+# CS-Lite Web v0.4
 
-A browser-based multiplayer 3D skeleton with collision, interpolation, and debug tools.
+A browser-based multiplayer FPS training field with weapons, AI, and server-authoritative combat.
+
+## v0.4 Scope
+
+- Two full-auto rifles: AR-4 (750 RPM, 24 dmg) and R-47 (600 RPM, 34 dmg)
+- Full-auto fire, reload (R), weapon switch (1/2)
+- Server-authoritative fire-rate, ammo, spread, recoil
+- 3 patrol AI enemies with FOV detection and attack
+- AI damage to player (HP floor 1), player HP regen
+- First-person weapon models, muzzle flash, recoil
+- Weapon HUD: ammo, reload status, player HP
+- AI color-coded by state, synthetic audio feedback
 
 ## v0.1 Scope
 
