@@ -4,12 +4,13 @@ import {
   Scene,
   Vector3
 } from "@babylonjs/core";
-import { CAMERA_HEIGHT, MOVE_SEND_HZ } from "../../shared/constants";
+import { CAMERA_HEIGHT, MOVE_SEND_HZ, PING_INTERVAL_MS } from "../../shared/constants";
 import type { MoveMessage } from "../../shared/types";
 import { NetworkClient } from "../network/NetworkClient";
 import { InputController } from "./InputController";
 import { MapBuilder } from "./MapBuilder";
 import { RemotePlayerView } from "./RemotePlayerView";
+import { DebugHud, type DebugSnapshot } from "./DebugHud";
 
 export class ClientGame {
   private root: HTMLDivElement;
@@ -20,7 +21,9 @@ export class ClientGame {
   private input: InputController | null = null;
   private remotePlayers: RemotePlayerView | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  private debugHud: DebugHud | null = null;
   private lastMoveSentAt = 0;
+  private lastPingSentAt = 0;
   private currentTransform: MoveMessage = {
     x: 0,
     y: CAMERA_HEIGHT,
@@ -43,6 +46,7 @@ export class ClientGame {
           <div class="hud-card" id="connection-status"><strong>连接状态：</strong>已连接</div>
           <div class="hud-card" id="peer-status">等待另一名玩家加入。</div>
           <div class="hud-card" id="pointer-help">点击画面锁定鼠标。WASD 移动，ESC 退出鼠标锁定。</div>
+          <div class="hud-card debug-card" id="debug-hud"><strong>Debug:</strong> F3 展开</div>
         </div>
       </div>
     `;
@@ -74,6 +78,9 @@ export class ClientGame {
 
     this.remotePlayers = new RemotePlayerView(this.scene);
 
+    this.debugHud = new DebugHud(this.root);
+    this.debugHud.attach();
+
     window.addEventListener("resize", this.handleResize);
 
     this.engine.runRenderLoop(() => {
@@ -85,6 +92,7 @@ export class ClientGame {
     window.removeEventListener("resize", this.handleResize);
     this.input?.detach();
     this.remotePlayers?.dispose();
+    this.debugHud?.detach();
     this.scene?.dispose();
     this.engine?.dispose();
     this.engine = null;
@@ -92,6 +100,7 @@ export class ClientGame {
     this.camera = null;
     this.input = null;
     this.remotePlayers = null;
+    this.debugHud = null;
     this.canvas = null;
   }
 
@@ -123,11 +132,15 @@ export class ClientGame {
       this.lastMoveSentAt = now;
     }
 
+    this.sendPingIfNeeded(now);
+
     this.remotePlayers?.updateTargets(
       this.network.getPlayersSnapshot(),
       this.network.sessionId
     );
     this.remotePlayers?.render();
+
+    this.debugHud?.render(this.createDebugSnapshot(now));
 
     this.scene.render();
   }
@@ -208,4 +221,33 @@ export class ClientGame {
   private handleResize = (): void => {
     this.engine?.resize();
   };
+
+  private sendPingIfNeeded(now: number): void {
+    if (now - this.lastPingSentAt < PING_INTERVAL_MS) {
+      return;
+    }
+
+    this.network.sendPing(now);
+    this.lastPingSentAt = now;
+  }
+
+  private createDebugSnapshot(now: number): DebugSnapshot {
+    const players = this.network.getPlayersSnapshot();
+
+    return {
+      roomId: this.network.roomId,
+      sessionId: this.network.sessionId,
+      connectionStatus: this.network.status,
+      playerCount: players.length,
+      remotePlayerCount: this.remotePlayers?.getRemotePlayerCount() ?? 0,
+      localX: this.currentTransform.x,
+      localY: this.currentTransform.y,
+      localZ: this.currentTransform.z,
+      localRotationY: this.currentTransform.rotationY,
+      moveSendHzTarget: MOVE_SEND_HZ,
+      lastMoveSentMsAgo: this.lastMoveSentAt > 0 ? now - this.lastMoveSentAt : null,
+      remoteUpdateAgeMs: this.remotePlayers?.getNewestSnapshotAgeMs() ?? null,
+      pingEstimateMs: this.network.getPingEstimateMs()
+    };
+  }
 }

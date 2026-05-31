@@ -203,3 +203,34 @@ input:focus {
   width: 2px;
   height: 16px;
 }
+
+.debug-card {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+
+.debug-grid dt {
+  color: #93c5fd;
+}
+
+.debug-grid dd {
+  margin: 0;
+  color: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.debug-hint {
+  margin-top: 8px;
+  color: #94a3b8;
+}
