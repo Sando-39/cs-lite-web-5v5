@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { FireResultMessage } from "../../shared/types";
 import {
   calculatePingEstimateMs,
+  formatFireResultMessage,
   getColyseusEndpoint,
   mapJoinErrorToMessage
 } from "../../src/network/NetworkClient";
@@ -50,5 +52,37 @@ describe("NetworkClient helpers", () => {
 
   it("calculates ping from a pong client timestamp", () => {
     expect(calculatePingEstimateMs(1000, 1137)).toBe(137);
+  });
+
+  it("formats a hit fire result", () => {
+    const result: FireResultMessage = {
+      shooterSessionId: "a", hit: true, targetId: "target-1",
+      damage: 25, targetHp: 75, targetKilled: false, reason: "hit"
+    };
+    expect(formatFireResultMessage(result, "a")).toBe("命中 +25，目标 HP: 75");
+  });
+
+  it("formats a kill fire result", () => {
+    const result: FireResultMessage = {
+      shooterSessionId: "a", hit: true, targetId: "target-1",
+      damage: 25, targetHp: 0, targetKilled: true, reason: "hit"
+    };
+    expect(formatFireResultMessage(result, "a")).toBe("命中 +25，目标已死亡");
+  });
+
+  it("formats a miss fire result", () => {
+    const result: FireResultMessage = {
+      shooterSessionId: "a", hit: false, targetId: "target-1",
+      damage: 0, targetHp: 100, targetKilled: false, reason: "miss"
+    };
+    expect(formatFireResultMessage(result, "a")).toBe("未命中");
+  });
+
+  it("ignores other players' fire result text for local feedback", () => {
+    const result: FireResultMessage = {
+      shooterSessionId: "b", hit: true, targetId: "target-1",
+      damage: 25, targetHp: 75, targetKilled: false, reason: "hit"
+    };
+    expect(formatFireResultMessage(result, "a")).toBeNull();
   });
 });

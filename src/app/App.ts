@@ -22,7 +22,9 @@ export class App {
         this.errorMessage = message;
         this.renderIfOnHome();
       },
-      onPlayerLeft: () => undefined
+      onPlayerLeft: () => undefined,
+      onFireResult: () => undefined,
+      onTargetRespawned: () => undefined
     });
   }
 

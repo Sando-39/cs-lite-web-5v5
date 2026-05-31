@@ -1,6 +1,6 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME } from "../../shared/constants";
-import type { ClientPlayerSnapshot, MoveMessage } from "../../shared/types";
+import type { ClientPlayerSnapshot, FireResultMessage, MoveMessage, TargetSnapshot } from "../../shared/types";
 
 export type EndpointInput = {
   isDev: boolean;
@@ -40,10 +40,20 @@ export function calculatePingEstimateMs(clientTime: number, receivedAt: number):
   return Math.max(0, Math.round(receivedAt - clientTime));
 }
 
+export function formatFireResultMessage(result: FireResultMessage, localSessionId: string | null): string | null {
+  if (result.shooterSessionId !== localSessionId) return null;
+  if (result.reason === "target_dead") return "目标已死亡，等待复活";
+  if (!result.hit) return "未命中";
+  if (result.targetKilled) return `命中 +${result.damage}，目标已死亡`;
+  return `命中 +${result.damage}，目标 HP: ${result.targetHp ?? "-"}`;
+}
+
 export type NetworkClientEvents = {
   onStatusChange(status: ConnectionStatus): void;
   onError(message: string): void;
   onPlayerLeft(sessionId: string): void;
+  onFireResult(result: FireResultMessage): void;
+  onTargetRespawned(targetId: string): void;
 };
 
 export class NetworkClient {
@@ -116,6 +126,11 @@ export class NetworkClient {
     this.room.send("ping", { clientTime });
   }
 
+  sendFire(clientTime: number): void {
+    if (!this.room || this.currentStatus !== "connected") return;
+    this.room.send("fire", { clientTime });
+  }
+
   getPlayersSnapshot(): ClientPlayerSnapshot[] {
     const players = this.room?.state?.players;
 
@@ -149,6 +164,37 @@ export class NetworkClient {
     });
 
     return result;
+  }
+
+  getTargetsSnapshot(): TargetSnapshot[] {
+    const targets = this.room?.state?.targets;
+    if (!targets || typeof targets.forEach !== "function") return [];
+    const result: TargetSnapshot[] = [];
+    targets.forEach((target: Record<string, unknown>) => {
+      if (
+        typeof target.id === "string" && typeof target.name === "string" &&
+        typeof target.x === "number" && typeof target.y === "number" &&
+        typeof target.z === "number" && typeof target.radius === "number" &&
+        typeof target.height === "number" && typeof target.hp === "number" &&
+        typeof target.maxHp === "number" && typeof target.alive === "boolean" &&
+        typeof target.respawnAt === "number"
+      ) {
+        result.push({
+          id: target.id, name: target.name, x: target.x, y: target.y,
+          z: target.z, radius: target.radius, height: target.height,
+          hp: target.hp, maxHp: target.maxHp, alive: target.alive, respawnAt: target.respawnAt
+        });
+      }
+    });
+    return result;
+  }
+
+  setFireResultHandler(handler: (result: FireResultMessage) => void): void {
+    this.events.onFireResult = handler;
+  }
+
+  setTargetRespawnedHandler(handler: (targetId: string) => void): void {
+    this.events.onTargetRespawned = handler;
   }
 
   leave(): void {
@@ -185,6 +231,15 @@ export class NetworkClient {
         }
 
         this.pingEstimateMs = calculatePingEstimateMs(message.clientTime, performance.now());
+      });
+
+      room.onMessage("fireResult", (message: FireResultMessage) => {
+        this.events.onFireResult(message);
+      });
+      room.onMessage("targetRespawned", (message: { targetId?: unknown }) => {
+        if (typeof message.targetId === "string") {
+          this.events.onTargetRespawned(message.targetId);
+        }
       });
     } catch (error) {
       this.room = null;
