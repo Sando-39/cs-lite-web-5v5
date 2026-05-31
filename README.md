@@ -121,7 +121,7 @@ Render Free Web Services can sleep after inactivity and wake on a later HTTP req
 ## Public v0.1 Test URL
 
 ```text
-https://<your-service-name>.onrender.com
+https://cs-lite-web-5v5.onrender.com
 ```
 
 Use this URL to create a room and invite one friend with the room code.
