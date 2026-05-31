@@ -91,7 +91,9 @@ export class ClientGame {
 
     const initial = this.getInitialLocalTransform();
     this.input = new InputController(canvas, initial, {
-      onFireHeld: () => { this.network.sendWeaponFire(this.activeWeaponId, performance.now()); this.weaponView?.playFire(this.activeWeaponId); this.gameAudio.playFire(this.activeWeaponId); },
+      onFireHeld: () => {
+        this.network.sendWeaponFire(this.activeWeaponId, performance.now());
+      },
       onReload: () => { this.network.sendReload(this.activeWeaponId, performance.now()); this.weaponView?.playReload(); this.gameAudio.playReload(); },
       onSwitchWeapon: (weaponId) => { this.activeWeaponId = weaponId; this.network.sendSwitchWeapon(weaponId, performance.now()); this.weaponView?.setActiveWeapon(weaponId); }
     });
@@ -103,7 +105,8 @@ export class ClientGame {
 
     this.weaponHud = new WeaponHud(this.root);
 
-    this.targetView = new TargetView(this.scene, this.root);
+    // TargetView removed in v0.4.1 — static targets replaced by AI enemies.
+    // this.targetView = new TargetView(this.scene, this.root);
 
     this.aiEnemyView = new AiEnemyView(this.scene, this.root);
 
@@ -111,6 +114,14 @@ export class ClientGame {
     this.network.setFireResultHandler((result) => {
       const message = formatFireResultMessage(result, this.network.sessionId);
       if (message) this.hitFeedback?.show(message);
+    });
+    this.network.setWeaponFireResultHandler((result) => {
+      if (result.accepted && result.reason === "fired") {
+        this.weaponView?.playFire(result.weaponId);
+        this.gameAudio.playFire(result.weaponId);
+      } else if (result.reason === "empty_mag") {
+        this.gameAudio.playEmpty();
+      }
     });
     this.network.setTargetRespawnedHandler(() => {
       this.hitFeedback?.show("假人已复活");
@@ -130,7 +141,7 @@ export class ClientGame {
     window.removeEventListener("resize", this.handleResize);
     this.input?.detach();
     this.remotePlayers?.dispose();
-    this.targetView?.dispose();
+    // this.targetView?.dispose();
     this.aiEnemyView?.dispose();
     this.aiEnemyView = null;
     this.hitFeedback?.dispose();
@@ -147,7 +158,7 @@ export class ClientGame {
     this.camera = null;
     this.input = null;
     this.remotePlayers = null;
-    this.targetView = null;
+    // this.targetView = null;
     this.debugHud = null;
     this.canvas = null;
   }
@@ -168,8 +179,11 @@ export class ClientGame {
     this.camera.rotation.x = this.input.getPitch();
     this.camera.rotation.y = this.currentTransform.rotationY;
 
-    const recoil = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY);
-    if (recoil) { this.camera.rotation.x += recoil.pitch; this.camera.rotation.y += recoil.yaw; }
+    const offsets = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY);
+    if (offsets) {
+      this.camera.rotation.x += offsets.pitchOffset;
+      this.camera.rotation.y += offsets.yawOffset;
+    }
 
     this.updateConnectionStatus();
     this.updatePointerHelp();
@@ -191,7 +205,7 @@ export class ClientGame {
     );
     this.remotePlayers?.render();
 
-    this.targetView?.update(this.network.getTargetsSnapshot());
+    // this.targetView?.update(this.network.getTargetsSnapshot());
 
     this.aiEnemyView?.update(this.network.getAiEnemiesSnapshot());
 

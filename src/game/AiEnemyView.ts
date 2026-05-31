@@ -16,11 +16,27 @@ export class AiEnemyView {
     for (const enemy of enemies) {
       let state = this.enemies.get(enemy.id);
       if (!state) { state = this.createEnemy(enemy); this.enemies.set(enemy.id, state); }
-      state.mesh.position.set(enemy.x, enemy.y - 0.85, enemy.z);
+      if (enemy.alive) {
+        state.mesh.rotation.z = 0;
+        state.mesh.position.y = enemy.y - 0.85;
+        state.mesh.scaling.set(1, 1, 1);
+      } else {
+        // Death: fall over
+        state.mesh.rotation.z = Math.PI / 2;
+        state.mesh.position.y = 0.45;
+        state.mesh.scaling.set(1, 1, 1);
+      }
+      state.mesh.position.x = enemy.x;
+      state.mesh.position.z = enemy.z;
       state.mesh.rotation.y = enemy.rotationY;
-      state.mesh.scaling.y = enemy.alive ? 1 : 0.35;
-      state.material.diffuseColor = enemy.alive ? (enemy.state === "attack" ? new Color3(1, 0.22, 0.16) : new Color3(0.9, 0.65, 0.2)) : new Color3(0.35, 0.35, 0.35);
-      state.hpLabel.textContent = `${enemy.name}: ${enemy.hp}/${enemy.maxHp} ${enemy.state}`;
+
+      state.material.diffuseColor = enemy.alive
+        ? (enemy.state === "attack" ? new Color3(1, 0.22, 0.16) : new Color3(0.9, 0.65, 0.2))
+        : new Color3(0.35, 0.35, 0.35);
+
+      state.hpLabel.textContent = enemy.alive
+        ? `${enemy.name}: ${enemy.hp}/${enemy.maxHp} ${enemy.state}`
+        : `${enemy.name}: DEAD`;
       state.hpLabel.classList.toggle("target-dead", !enemy.alive);
     }
     for (const [id, state] of this.enemies.entries()) { if (!ids.has(id)) { state.mesh.dispose(); state.hpLabel.remove(); this.enemies.delete(id); } }

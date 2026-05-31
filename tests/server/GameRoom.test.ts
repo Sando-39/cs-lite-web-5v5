@@ -98,14 +98,10 @@ describe("GameRoom", () => {
     expect(room.state.players.get("a")?.x).toBe(before);
   });
 
-  it("initializes the static target on room create", () => {
+  it("does not initialize static targets in v0.4", () => {
     const room = new GameRoom();
     room.onCreate();
-    const target = room.state.targets.get("target-1");
-    expect(target).toBeDefined();
-    expect(target?.name).toBe("Training Dummy");
-    expect(target?.hp).toBe(100);
-    expect(target?.alive).toBe(true);
+    expect(room.state.targets.size).toBe(0);
   });
 
   it("creates a pong payload from a ping payload", () => {
@@ -114,72 +110,6 @@ describe("GameRoom", () => {
 
     expect(pong.clientTime).toBe(123);
     expect(typeof pong.serverTime).toBe("number");
-  });
-
-  it("damages the static target when fire hits", () => {
-    const room = new GameRoom();
-    room.onCreate();
-    const client = makeClientWithMessages("a");
-    room.onJoin(client);
-    const player = room.state.players.get("a");
-    expect(player).toBeDefined();
-    player!.x = 0; player!.y = 1.0; player!.z = -20;
-    player!.rotationY = 0; player!.pitch = 0;
-    room.handleFireForTest("a", { clientTime: 123 });
-    const target = room.state.targets.get("target-1");
-    expect(target?.hp).toBe(75);
-    expect(target?.alive).toBe(true);
-  });
-
-  it("does not damage the static target when fire misses", () => {
-    const room = new GameRoom();
-    room.onCreate();
-    const client = makeClientWithMessages("a");
-    room.onJoin(client);
-    const player = room.state.players.get("a");
-    player!.x = 0; player!.y = 1.0; player!.z = -20;
-    player!.rotationY = Math.PI; player!.pitch = 0;
-    room.handleFireForTest("a", { clientTime: 123 });
-    expect(room.state.targets.get("target-1")?.hp).toBe(100);
-  });
-
-  it("kills the target after four hits", () => {
-    const room = new GameRoom();
-    room.onCreate();
-    const client = makeClientWithMessages("a");
-    room.onJoin(client);
-    const player = room.state.players.get("a");
-    player!.x = 0; player!.y = 1.0; player!.z = -20;
-    player!.rotationY = 0; player!.pitch = 0;
-    room.handleFireForTest("a", { clientTime: 1 });
-    room.handleFireForTest("a", { clientTime: 2 });
-    room.handleFireForTest("a", { clientTime: 3 });
-    room.handleFireForTest("a", { clientTime: 4 });
-    const target = room.state.targets.get("target-1");
-    expect(target?.hp).toBe(0);
-    expect(target?.alive).toBe(false);
-    expect(target?.respawnAt).toBeGreaterThan(0);
-  });
-
-  it("ignores malformed fire messages", () => {
-    const room = new GameRoom();
-    room.onCreate();
-    const client = makeClientWithMessages("a");
-    room.onJoin(client);
-    room.handleFireForTest("a", { clientTime: "bad" });
-    expect(room.state.targets.get("target-1")?.hp).toBe(100);
-  });
-
-  it("respawns a dead target when respawn time is reached", () => {
-    const room = new GameRoom();
-    room.onCreate();
-    const target = room.state.targets.get("target-1");
-    expect(target).toBeDefined();
-    target!.hp = 0; target!.alive = false; target!.respawnAt = 5000;
-    room.respawnTargetsIfReady(5000);
-    expect(target!.hp).toBe(100);
-    expect(target!.alive).toBe(true);
-    expect(target!.respawnAt).toBe(0);
   });
 
   it("initializes player hp and active weapon on join", () => {
@@ -245,5 +175,45 @@ describe("GameRoom", () => {
     player.lastDamagedAt = 1000;
     room.regeneratePlayersForTest(5000, 1);
     expect(player.hp).toBe(60);
+  });
+
+  it("rejects empty mag weapon fire and does not damage AI", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const weapon = room.state.players.get("a")?.weapons.get("ar4");
+    weapon!.ammoInMag = 0;
+    const result = room.handleWeaponFireForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    expect(result?.accepted).toBe(false);
+    expect(result?.reason).toBe("empty_mag");
+    // AI should still be at 100 HP
+    expect(room.state.aiEnemies.get("ai-1")?.hp).toBe(100);
+  });
+
+  it("fires and damages AI after reload completes", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const weapon = room.state.players.get("a")?.weapons.get("ar4");
+    weapon!.ammoInMag = 2;
+    // Start reload
+    room.handleReloadForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    // Reload completes at 2900
+    const playerState = room.state.players.get("a")!;
+    // Simulate simulation completing the reload
+    playerState.weapons.get("ar4")!.ammoInMag = 30;
+    playerState.weapons.get("ar4")!.reserveAmmo = 62;
+    playerState.weapons.get("ar4")!.isReloading = false;
+    playerState.weapons.get("ar4")!.reloadEndsAt = 0;
+    // Position player to hit AI
+    const ai = room.state.aiEnemies.get("ai-1")!;
+    playerState.x = ai.x; playerState.y = 1.7; playerState.z = ai.z + 20;
+    playerState.rotationY = Math.PI; playerState.pitch = 0;
+    // Fire
+    const result = room.handleWeaponFireForTest("a", { weaponId: "ar4", clientTime: 3000 }, 3000);
+    expect(result?.accepted).toBe(true);
+    expect(result?.hit).toBe(true);
+    expect(result?.damage).toBe(24);
+    expect(ai.hp).toBe(76);
   });
 });

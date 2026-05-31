@@ -33,9 +33,10 @@ export class GameRoom extends Room<{ state: GameState }> {
   onCreate(): void {
     this.setState(new GameState());
 
-    for (const targetConfig of STATIC_TARGETS) {
-      this.state.targets.set(targetConfig.id, createTargetState(targetConfig));
-    }
+    // Static targets removed in v0.4.1 — gameplay uses AI enemies only.
+    // for (const targetConfig of STATIC_TARGETS) {
+    //   this.state.targets.set(targetConfig.id, createTargetState(targetConfig));
+    // }
 
     for (const aiConfig of AI_ENEMIES) {
       this.state.aiEnemies.set(aiConfig.id, createAiEnemyState(aiConfig));
