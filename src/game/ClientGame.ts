@@ -19,6 +19,8 @@ import { WeaponView } from "./WeaponView";
 import { GameAudio } from "./GameAudio";
 import { AiEnemyView } from "./AiEnemyView";
 import { WeaponHud } from "./WeaponHud";
+import { ReloadProgress } from "./ReloadProgress";
+import { TracerView } from "./TracerView";
 
 export class ClientGame {
   private root: HTMLDivElement;
@@ -36,6 +38,7 @@ export class ClientGame {
   private weaponView: WeaponView | null = null;
   private weaponHud: WeaponHud | null = null;
   private aiEnemyView: AiEnemyView | null = null;
+  private reloadProgress: ReloadProgress | null = null;
   private gameAudio = new GameAudio();
   private lastMoveSentAt = 0;
   private lastPingSentAt = 0;
@@ -88,6 +91,8 @@ export class ClientGame {
     this.camera.fov = 1.1;
 
     this.weaponView = new WeaponView(this.scene);
+
+    this.reloadProgress = new ReloadProgress(this.root);
 
     const initial = this.getInitialLocalTransform();
     this.input = new InputController(canvas, initial, {
@@ -150,6 +155,8 @@ export class ClientGame {
     this.weaponView = null;
     this.weaponHud?.dispose();
     this.weaponHud = null;
+    this.reloadProgress?.dispose();
+    this.reloadProgress = null;
     this.debugHud?.detach();
     this.scene?.dispose();
     this.engine?.dispose();
@@ -213,6 +220,8 @@ export class ClientGame {
 
     const ownPlayer = this.network.getPlayersSnapshot().find(p => p.sessionId === this.network.sessionId);
     this.weaponHud?.render(this.activeWeaponId, this.network.getLocalWeaponSnapshots(), ownPlayer?.hp ?? null);
+
+    this.reloadProgress?.render(this.activeWeaponId, this.network.getLocalWeaponSnapshots(), performance.now());
 
     this.debugHud?.render(this.createDebugSnapshot(now));
 

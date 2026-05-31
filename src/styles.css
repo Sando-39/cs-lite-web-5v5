@@ -285,3 +285,10 @@ input:focus {
 
 .ai-hp { position: relative; z-index: 3; display: inline-block; margin: 4px; border: 1px solid rgba(239,68,68,0.55); border-radius: 999px; background: rgba(127,29,29,0.8); color: #fecaca; font-size: 12px; font-weight: 800; padding: 6px 10px; }
 .ai-hp.target-dead { border-color: rgba(148,163,184,0.45); background: rgba(51,65,85,0.78); color: #cbd5e1; }
+
+.reload-progress { position: fixed; left: 50%; bottom: 28%; z-index: 6; width: min(360px, calc(100vw - 48px)); transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.reload-progress.visible { opacity: 1; }
+.reload-title { color: #f8fafc; font-weight: 900; text-align: center; margin-bottom: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+.reload-bar { overflow: hidden; height: 12px; border: 1px solid rgba(147,197,253,0.55); border-radius: 999px; background: rgba(15,23,42,0.82); }
+.reload-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #2563eb); }
+.reload-percent { color: #cbd5e1; font-size: 12px; text-align: center; margin-top: 5px; }
