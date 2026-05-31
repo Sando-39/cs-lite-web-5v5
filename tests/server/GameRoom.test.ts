@@ -199,4 +199,51 @@ describe("GameRoom", () => {
     expect(room.state.aiEnemies.get("ai-1")?.state).toBe("patrol");
     expect(room.state.aiEnemies.get("ai-1")?.hp).toBe(100);
   });
+
+  it("switches active weapon from AR-4 to R-47", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    room.handleSwitchWeaponForTest("a", { weaponId: "r47", clientTime: 1000 });
+    expect(room.state.players.get("a")?.activeWeaponId).toBe("r47");
+  });
+
+  it("fires active weapon and consumes ammo", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const result = room.handleWeaponFireForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    expect(result?.accepted).toBe(true);
+    expect(room.state.players.get("a")?.weapons.get("ar4")?.ammoInMag).toBe(29);
+  });
+
+  it("starts reload for a partially empty magazine", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const weapon = room.state.players.get("a")?.weapons.get("ar4");
+    weapon!.ammoInMag = 10;
+    const result = room.handleReloadForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    expect(result?.started).toBe(true);
+    expect(weapon?.isReloading).toBe(true);
+  });
+
+  it("updates player hp when damaged by ai but does not kill", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    room.damagePlayerForTest("a", "ai-1", 200);
+    expect(room.state.players.get("a")?.hp).toBe(1);
+  });
+
+  it("regenerates player hp after regen delay", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const player = room.state.players.get("a")!;
+    player.hp = 50;
+    player.lastDamagedAt = 1000;
+    room.regeneratePlayersForTest(5000, 1);
+    expect(player.hp).toBe(60);
+  });
 });
