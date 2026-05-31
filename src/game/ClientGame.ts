@@ -17,6 +17,7 @@ import { DebugHud, type DebugSnapshot } from "./DebugHud";
 import type { WeaponId } from "../../shared/weapons";
 import { WeaponView } from "./WeaponView";
 import { GameAudio } from "./GameAudio";
+import { AiEnemyView } from "./AiEnemyView";
 import { WeaponHud } from "./WeaponHud";
 
 export class ClientGame {
@@ -34,6 +35,7 @@ export class ClientGame {
   private activeWeaponId: WeaponId = "ar4";
   private weaponView: WeaponView | null = null;
   private weaponHud: WeaponHud | null = null;
+  private aiEnemyView: AiEnemyView | null = null;
   private gameAudio = new GameAudio();
   private lastMoveSentAt = 0;
   private lastPingSentAt = 0;
@@ -103,6 +105,8 @@ export class ClientGame {
 
     this.targetView = new TargetView(this.scene, this.root);
 
+    this.aiEnemyView = new AiEnemyView(this.scene, this.root);
+
     this.hitFeedback = new HitFeedback(this.root);
     this.network.setFireResultHandler((result) => {
       const message = formatFireResultMessage(result, this.network.sessionId);
@@ -127,6 +131,8 @@ export class ClientGame {
     this.input?.detach();
     this.remotePlayers?.dispose();
     this.targetView?.dispose();
+    this.aiEnemyView?.dispose();
+    this.aiEnemyView = null;
     this.hitFeedback?.dispose();
     this.hitFeedback = null;
     this.weaponView?.dispose();
@@ -186,6 +192,8 @@ export class ClientGame {
     this.remotePlayers?.render();
 
     this.targetView?.update(this.network.getTargetsSnapshot());
+
+    this.aiEnemyView?.update(this.network.getAiEnemiesSnapshot());
 
     this.hitFeedback?.update(now);
 
