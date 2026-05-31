@@ -98,6 +98,7 @@ export class GameRoom extends Room<{ state: GameState }> {
         y: player.y,
         z: player.z,
         rotationY: player.rotationY,
+        pitch: player.pitch,
         color: player.color,
         lastMoveAt: player.lastMoveAt
       },
@@ -113,6 +114,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     player.y = result.y;
     player.z = result.z;
     player.rotationY = result.rotationY;
+    player.pitch = result.pitch;
     player.lastMoveAt = Date.now();
   }
 }

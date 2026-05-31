@@ -34,6 +34,7 @@ export function createPlayerRecord(
     y: spawn.y,
     z: spawn.z,
     rotationY: spawn.rotationY,
+    pitch: 0,
     color: spawn.color,
     lastMoveAt: now
   };

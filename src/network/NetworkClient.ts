@@ -132,6 +132,7 @@ export class NetworkClient {
         typeof player.y === "number" &&
         typeof player.z === "number" &&
         typeof player.rotationY === "number" &&
+        typeof player.pitch === "number" &&
         (player.color === "blue" || player.color === "orange")
       ) {
         result.push({
@@ -141,6 +142,7 @@ export class NetworkClient {
           y: player.y,
           z: player.z,
           rotationY: player.rotationY,
+          pitch: player.pitch,
           color: player.color
         });
       }

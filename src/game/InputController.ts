@@ -20,6 +20,7 @@ export class InputController {
     this.canvas = canvas;
     this.position.set(initial.x, CAMERA_HEIGHT, initial.z);
     this.yaw = initial.rotationY;
+    this.pitch = initial.pitch ?? 0;
   }
 
   attach(): void {
@@ -69,7 +70,8 @@ export class InputController {
       x: this.position.x,
       y: CAMERA_HEIGHT,
       z: this.position.z,
-      rotationY: this.yaw
+      rotationY: this.yaw,
+      pitch: this.pitch
     };
   }
 

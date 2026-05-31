@@ -8,6 +8,7 @@ export class PlayerState extends Schema {
   @type("number") y = 0;
   @type("number") z = 0;
   @type("number") rotationY = 0;
+  @type("number") pitch = 0;
   @type("string") color: PlayerColor = "blue";
   @type("number") lastMoveAt = 0;
 
@@ -18,6 +19,7 @@ export class PlayerState extends Schema {
     this.y = record.y;
     this.z = record.z;
     this.rotationY = record.rotationY;
+    this.pitch = record.pitch;
     this.color = record.color;
     this.lastMoveAt = record.lastMoveAt;
   }

@@ -15,6 +15,7 @@ function makePlayer(overrides: Partial<ServerPlayerRecord> = {}): ServerPlayerRe
     y: 1.7,
     z: 0,
     rotationY: 0,
+    pitch: 0,
     color: "blue",
     lastMoveAt: 1000,
     ...overrides
@@ -27,14 +28,16 @@ describe("movement rules", () => {
       x: 1,
       y: 1.7,
       z: -2,
-      rotationY: 0.5
+      rotationY: 0.5,
+      pitch: 0.2
     });
 
     expect(result).toEqual({
       x: 1,
       y: 1.7,
       z: -2,
-      rotationY: 0.5
+      rotationY: 0.5,
+      pitch: 0.2
     });
   });
 
@@ -45,7 +48,8 @@ describe("movement rules", () => {
         x: Number.POSITIVE_INFINITY,
         y: 1.7,
         z: 0,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       })
     ).toBeNull();
   });
@@ -64,7 +68,8 @@ describe("movement rules", () => {
         x: 0.5,
         y: 1.7,
         z: 0,
-        rotationY: 0.1
+        rotationY: 0.1,
+        pitch: 0
       },
       1100
     );
@@ -73,6 +78,7 @@ describe("movement rules", () => {
     expect(result.x).toBeCloseTo(0.5);
     expect(result.z).toBeCloseTo(0);
     expect(result.rotationY).toBeCloseTo(0.1);
+    expect(result.pitch).toBeCloseTo(0);
   });
 
   it("clamps obvious teleport movement instead of accepting the target directly", () => {
@@ -83,7 +89,8 @@ describe("movement rules", () => {
         x: 100,
         y: 1.7,
         z: 0,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       },
       1100
     );
@@ -102,7 +109,8 @@ describe("movement rules", () => {
         x: -8,
         y: 1.7,
         z: -6,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       },
       1500
     );
@@ -120,7 +128,8 @@ describe("movement rules", () => {
         x: 999,
         y: 1.7,
         z: 0,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       },
       1500
     );
@@ -137,7 +146,8 @@ describe("movement rules", () => {
         x: 12,
         y: 1.7,
         z: 12,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       },
       1100
     );
@@ -148,5 +158,15 @@ describe("movement rules", () => {
 
     expect(result.accepted).toBe(true);
     expect(moved).toBeLessThan(2);
+  });
+
+  it("rejects movement without pitch", () => {
+    expect(normalizeMoveMessage({ x: 1, y: 1.7, z: -2, rotationY: 0.5 })).toBeNull();
+  });
+
+  it("clamps pitch to the allowed range", () => {
+    const player = makePlayer();
+    const result = validateAndClampMove(player, { x: 0, y: 1.7, z: 0, rotationY: 0, pitch: 999 }, 1100);
+    expect(result.pitch).toBe(1.35);
   });
 });

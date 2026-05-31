@@ -37,6 +37,7 @@ describe("player slots", () => {
       y: 1.7,
       z: 0,
       rotationY: Math.PI / 2,
+      pitch: 0,
       color: "blue",
       lastMoveAt: 1234
     });

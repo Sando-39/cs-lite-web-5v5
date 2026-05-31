@@ -58,7 +58,8 @@ describe("GameRoom", () => {
       x: -3.8,
       y: 1.7,
       z: 0.2,
-      rotationY: 0.3
+      rotationY: 0.3,
+      pitch: 0.1
     });
 
     const moved = room.state.players.get("a");
@@ -66,6 +67,7 @@ describe("GameRoom", () => {
     expect(moved?.x).toBeCloseTo(-3.8);
     expect(moved?.z).toBeCloseTo(0.2);
     expect(moved?.rotationY).toBeCloseTo(0.3);
+    expect(moved?.pitch).toBeCloseTo(0.1);
   });
 
   it("ignores malformed move messages", () => {
@@ -79,7 +81,8 @@ describe("GameRoom", () => {
       x: "bad",
       y: 1.7,
       z: 0,
-      rotationY: 0
+      rotationY: 0,
+      pitch: 0
     });
 
     expect(room.state.players.get("a")?.x).toBe(before);
