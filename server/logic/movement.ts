@@ -2,8 +2,9 @@ import {
   CAMERA_HEIGHT,
   MAP_HALF_SIZE,
   MAX_SERVER_MOVE_SPEED_UNITS_PER_SECOND
-} from "../../shared/constants.js";
-import type { MoveMessage, ServerPlayerRecord } from "../../shared/types.js";
+} from "../../shared/constants";
+import { resolveMapMovement } from "../../shared/collision";
+import type { MoveMessage, ServerPlayerRecord } from "../../shared/types";
 
 export type ValidatedMove = {
   accepted: boolean;
@@ -61,32 +62,38 @@ export function validateAndClampMove(
   const maxDistance =
     MAX_SERVER_MOVE_SPEED_UNITS_PER_SECOND * elapsedSeconds + 0.05;
 
-  const targetX = clampToMapBounds(move.x);
-  const targetZ = clampToMapBounds(move.z);
+  const boundedTargetX = clampToMapBounds(move.x);
+  const boundedTargetZ = clampToMapBounds(move.z);
 
-  const dx = targetX - player.x;
-  const dz = targetZ - player.z;
+  const dx = boundedTargetX - player.x;
+  const dz = boundedTargetZ - player.z;
   const distance = Math.sqrt(dx * dx + dz * dz);
 
-  if (distance <= maxDistance) {
-    return {
-      accepted: true,
-      x: targetX,
-      y: CAMERA_HEIGHT,
-      z: targetZ,
-      rotationY: move.rotationY,
-      reason: "ok"
-    };
-  }
+  const speedLimitedTarget =
+    distance <= maxDistance
+      ? { x: boundedTargetX, z: boundedTargetZ }
+      : {
+          x: player.x + dx * (maxDistance / distance),
+          z: player.z + dz * (maxDistance / distance)
+        };
 
-  const scale = maxDistance / distance;
+  const resolved = resolveMapMovement(
+    { x: player.x, z: player.z },
+    speedLimitedTarget
+  );
+
+  const wasClamped =
+    distance > maxDistance ||
+    resolved.collided ||
+    resolved.x !== move.x ||
+    resolved.z !== move.z;
 
   return {
     accepted: true,
-    x: clampToMapBounds(player.x + dx * scale),
+    x: resolved.x,
     y: CAMERA_HEIGHT,
-    z: clampToMapBounds(player.z + dz * scale),
+    z: resolved.z,
     rotationY: move.rotationY,
-    reason: "clamped"
+    reason: wasClamped ? "clamped" : "ok"
   };
 }

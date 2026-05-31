@@ -93,4 +93,60 @@ describe("movement rules", () => {
     expect(result.x).toBeGreaterThan(0);
     expect(result.z).toBe(0);
   });
+
+  it("does not accept a final position inside a map collider", () => {
+    const player = makePlayer({ x: -8, z: -10, lastMoveAt: 1000 });
+    const result = validateAndClampMove(
+      player,
+      {
+        x: -8,
+        y: 1.7,
+        z: -6,
+        rotationY: 0
+      },
+      1500
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(result.x).toBeCloseTo(-8);
+    expect(result.z).not.toBeCloseTo(-6);
+  });
+
+  it("keeps the final server position inside map bounds", () => {
+    const player = makePlayer({ x: 23, z: 0, lastMoveAt: 1000 });
+    const result = validateAndClampMove(
+      player,
+      {
+        x: 999,
+        y: 1.7,
+        z: 0,
+        rotationY: 0
+      },
+      1500
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(result.x).toBeLessThanOrEqual(23.55);
+  });
+
+  it("applies speed limits before collision resolution", () => {
+    const player = makePlayer({ x: -12, z: -12, lastMoveAt: 1000 });
+    const result = validateAndClampMove(
+      player,
+      {
+        x: 12,
+        y: 1.7,
+        z: 12,
+        rotationY: 0
+      },
+      1100
+    );
+
+    const dx = result.x - player.x;
+    const dz = result.z - player.z;
+    const moved = Math.sqrt(dx * dx + dz * dz);
+
+    expect(result.accepted).toBe(true);
+    expect(moved).toBeLessThan(2);
+  });
 });
