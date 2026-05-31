@@ -4,6 +4,7 @@ export type Vector3Like = { x: number; y: number; z: number };
 export type ShotRay = { origin: Vector3Like; direction: Vector3Like };
 export type ShooterPose = { x: number; y: number; z: number; rotationY: number; pitch: number };
 export type StaticTargetLike = { id: string; name: string; x: number; y: number; z: number; radius: number; height: number };
+export type AiEnemyHitboxLike = { id: string; x: number; y: number; z: number; radius: number; height: number; alive: boolean };
 export type TargetCombatState = StaticTargetLike & { hp: number; maxHp: number; alive: boolean; respawnAt: number };
 export type TargetHit = { targetId: string; distance: number };
 export type DamageResult = { hp: number; alive: boolean; killed: boolean; respawnAt: number; wasAlreadyDead: boolean };
@@ -43,6 +44,11 @@ export function applyTargetDamage(target: TargetCombatState, damage: number, now
 export function respawnTargetIfReady(target: TargetCombatState, now: number): RespawnResult {
   if (target.alive || target.respawnAt === 0 || now < target.respawnAt) return { hp: target.hp, alive: target.alive, respawnAt: target.respawnAt, respawned: false };
   return { hp: target.maxHp, alive: true, respawnAt: 0, respawned: true };
+}
+
+export function intersectRayWithAiEnemy(ray: ShotRay, ai: AiEnemyHitboxLike, range: number): TargetHit | null {
+  if (!ai.alive) return null;
+  return intersectRayWithStaticTarget(ray, { id: ai.id, name: ai.id, x: ai.x, y: ai.y - ai.height / 2, z: ai.z, radius: ai.radius, height: ai.height }, range);
 }
 
 function normalizeVector(vector: Vector3Like): Vector3Like {

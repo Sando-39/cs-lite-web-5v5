@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyTargetDamage,
   createShotRay,
+  intersectRayWithAiEnemy,
   intersectRayWithStaticTarget,
   respawnTargetIfReady
 } from "../../server/logic/combat";
@@ -84,5 +85,16 @@ describe("combat", () => {
     expect(result.alive).toBe(true);
     expect(result.respawnAt).toBe(0);
     expect(result.respawned).toBe(true);
+  });
+
+  it("hits an AI target directly in front of the player", () => {
+    const ray = createShotRay({ x: 0, y: 1.7, z: 0, rotationY: 0, pitch: 0 });
+    const hit = intersectRayWithAiEnemy(ray, { id: "ai-1", x: 0, y: 1.7, z: 10, radius: 0.5, height: 1.8, alive: true }, 70);
+    expect(hit?.targetId).toBe("ai-1");
+  });
+
+  it("does not hit a dead AI target", () => {
+    const ray = createShotRay({ x: 0, y: 1.7, z: 0, rotationY: 0, pitch: 0 });
+    expect(intersectRayWithAiEnemy(ray, { id: "ai-1", x: 0, y: 1.7, z: 10, radius: 0.5, height: 1.8, alive: false }, 70)).toBeNull();
   });
 });
