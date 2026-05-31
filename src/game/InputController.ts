@@ -1,9 +1,9 @@
 import { Vector3 } from "@babylonjs/core";
 import {
   CAMERA_HEIGHT,
-  MAP_HALF_SIZE,
   PLAYER_SPEED_UNITS_PER_SECOND
 } from "../../shared/constants";
+import { resolveMapMovement } from "../../shared/collision";
 import type { MoveMessage } from "../../shared/types";
 
 export type LocalTransform = MoveMessage;
@@ -28,9 +28,7 @@ export class InputController {
     window.addEventListener("mousemove", this.handleMouseMove);
     document.addEventListener("pointerlockchange", this.handlePointerLockChange);
 
-    this.canvas.addEventListener("click", () => {
-      void this.canvas.requestPointerLock();
-    });
+    this.canvas.addEventListener("click", this.requestPointerLock);
   }
 
   detach(): void {
@@ -38,6 +36,7 @@ export class InputController {
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("mousemove", this.handleMouseMove);
     document.removeEventListener("pointerlockchange", this.handlePointerLockChange);
+    this.canvas.removeEventListener("click", this.requestPointerLock);
   }
 
   update(deltaSeconds: number): LocalTransform {
@@ -47,17 +46,23 @@ export class InputController {
     const forward = new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
     const right = new Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-    const movement = forward
-      .scale(forwardInput)
-      .add(right.scale(rightInput));
+    const movement = forward.scale(forwardInput).add(right.scale(rightInput));
 
     if (movement.lengthSquared() > 0) {
       movement.normalize();
       movement.scaleInPlace(PLAYER_SPEED_UNITS_PER_SECOND * deltaSeconds);
-      this.position.addInPlace(movement);
-      this.position.x = this.clampToBounds(this.position.x);
+
+      const resolved = resolveMapMovement(
+        { x: this.position.x, z: this.position.z },
+        {
+          x: this.position.x + movement.x,
+          z: this.position.z + movement.z
+        }
+      );
+
+      this.position.x = resolved.x;
       this.position.y = CAMERA_HEIGHT;
-      this.position.z = this.clampToBounds(this.position.z);
+      this.position.z = resolved.z;
     }
 
     return {
@@ -75,6 +80,10 @@ export class InputController {
   isMouseLocked(): boolean {
     return this.isPointerLocked;
   }
+
+  private requestPointerLock = (): void => {
+    void this.canvas.requestPointerLock();
+  };
 
   private handleKeyDown = (event: KeyboardEvent): void => {
     this.keys.add(event.code);
@@ -98,9 +107,4 @@ export class InputController {
   private handlePointerLockChange = (): void => {
     this.isPointerLocked = document.pointerLockElement === this.canvas;
   };
-
-  private clampToBounds(value: number): number {
-    const margin = 1;
-    return Math.max(-MAP_HALF_SIZE + margin, Math.min(MAP_HALF_SIZE - margin, value));
-  }
 }
