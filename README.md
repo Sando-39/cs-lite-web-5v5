@@ -21,6 +21,20 @@ A browser-based multiplayer 3D skeleton with collision, interpolation, and debug
 - Lightweight ping estimation
 - Toggleable F3 Debug HUD
 
+## v0.3 Scope
+
+v0.3 adds a minimal server-authoritative shooting slice against a static training dummy.
+
+- Pitch synchronization
+- Static training dummy target
+- Mouse-left fire input (only under Pointer Lock)
+- Server-authoritative ray tracing from player position + yaw + pitch
+- 100 HP target, 25 damage per hit, death at 0 HP
+- Target auto-respawn after 3 seconds
+- Hit / miss / death / respawn feedback
+- Target HP state synchronized to both clients
+- F3 Debug HUD: pitch, target HP, target alive state
+
 ## Not Included
 
 - Shooting
