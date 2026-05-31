@@ -292,3 +292,5 @@ input:focus {
 .reload-bar { overflow: hidden; height: 12px; border: 1px solid rgba(147,197,253,0.55); border-radius: 999px; background: rgba(15,23,42,0.82); }
 .reload-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #2563eb); }
 .reload-percent { color: #cbd5e1; font-size: 12px; text-align: center; margin-top: 5px; }
+
+.debug-line-chart { display: block; width: 220px; height: 60px; border: 1px solid rgba(148,163,184,0.18); border-radius: 8px; margin-top: 6px; }
