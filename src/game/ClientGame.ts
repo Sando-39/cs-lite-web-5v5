@@ -14,6 +14,10 @@ import { MapBuilder } from "./MapBuilder";
 import { RemotePlayerView } from "./RemotePlayerView";
 import { TargetView } from "./TargetView";
 import { DebugHud, type DebugSnapshot } from "./DebugHud";
+import type { WeaponId } from "../../shared/weapons";
+import { WeaponView } from "./WeaponView";
+import { GameAudio } from "./GameAudio";
+import { WeaponHud } from "./WeaponHud";
 
 export class ClientGame {
   private root: HTMLDivElement;
@@ -27,6 +31,10 @@ export class ClientGame {
   private canvas: HTMLCanvasElement | null = null;
   private debugHud: DebugHud | null = null;
   private hitFeedback: HitFeedback | null = null;
+  private activeWeaponId: WeaponId = "ar4";
+  private weaponView: WeaponView | null = null;
+  private weaponHud: WeaponHud | null = null;
+  private gameAudio = new GameAudio();
   private lastMoveSentAt = 0;
   private lastPingSentAt = 0;
   private currentTransform: MoveMessage = {
@@ -77,13 +85,21 @@ export class ClientGame {
     this.camera.maxZ = 200;
     this.camera.fov = 1.1;
 
+    this.weaponView = new WeaponView(this.scene);
+
     const initial = this.getInitialLocalTransform();
-    this.input = new InputController(canvas, initial, () => {
-      this.network.sendFire(performance.now());
+    this.input = new InputController(canvas, initial, {
+      onFireHeld: () => { this.network.sendWeaponFire(this.activeWeaponId, performance.now()); this.weaponView?.playFire(this.activeWeaponId); this.gameAudio.playFire(this.activeWeaponId); },
+      onReload: () => { this.network.sendReload(this.activeWeaponId, performance.now()); this.weaponView?.playReload(); this.gameAudio.playReload(); },
+      onSwitchWeapon: (weaponId) => { this.activeWeaponId = weaponId; this.network.sendSwitchWeapon(weaponId, performance.now()); this.weaponView?.setActiveWeapon(weaponId); }
     });
     this.input.attach();
 
+    this.gameAudio.unlock();
+
     this.remotePlayers = new RemotePlayerView(this.scene);
+
+    this.weaponHud = new WeaponHud(this.root);
 
     this.targetView = new TargetView(this.scene, this.root);
 
@@ -113,6 +129,10 @@ export class ClientGame {
     this.targetView?.dispose();
     this.hitFeedback?.dispose();
     this.hitFeedback = null;
+    this.weaponView?.dispose();
+    this.weaponView = null;
+    this.weaponHud?.dispose();
+    this.weaponHud = null;
     this.debugHud?.detach();
     this.scene?.dispose();
     this.engine?.dispose();
@@ -142,6 +162,9 @@ export class ClientGame {
     this.camera.rotation.x = this.input.getPitch();
     this.camera.rotation.y = this.currentTransform.rotationY;
 
+    const recoil = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY);
+    if (recoil) { this.camera.rotation.x += recoil.pitch; this.camera.rotation.y += recoil.yaw; }
+
     this.updateConnectionStatus();
     this.updatePointerHelp();
     this.updatePeerStatus();
@@ -165,6 +188,9 @@ export class ClientGame {
     this.targetView?.update(this.network.getTargetsSnapshot());
 
     this.hitFeedback?.update(now);
+
+    const ownPlayer = this.network.getPlayersSnapshot().find(p => p.sessionId === this.network.sessionId);
+    this.weaponHud?.render(this.activeWeaponId, this.network.getLocalWeaponSnapshots(), ownPlayer?.hp ?? null);
 
     this.debugHud?.render(this.createDebugSnapshot(now));
 

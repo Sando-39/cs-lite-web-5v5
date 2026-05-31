@@ -191,7 +191,11 @@ export class NetworkClient {
           z: player.z,
           rotationY: player.rotationY,
           pitch: player.pitch,
-          color: player.color
+          color: player.color,
+          hp: typeof player.hp === "number" ? player.hp : 100,
+          maxHp: typeof player.maxHp === "number" ? player.maxHp : 100,
+          lastDamagedAt: typeof player.lastDamagedAt === "number" ? player.lastDamagedAt : 0,
+          activeWeaponId: typeof player.activeWeaponId === "string" && (player.activeWeaponId === "ar4" || player.activeWeaponId === "r47") ? player.activeWeaponId : "ar4"
         });
       }
     });

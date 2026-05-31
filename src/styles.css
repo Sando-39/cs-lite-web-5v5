@@ -277,3 +277,8 @@ input:focus {
   background: rgba(51, 65, 85, 0.78);
   color: #cbd5e1;
 }
+
+.weapon-hud { position: fixed; right: 16px; bottom: 16px; z-index: 4; min-width: 180px; border: 1px solid rgba(148,163,184,0.35); border-radius: 18px; background: rgba(15,23,42,0.82); color: #f8fafc; padding: 14px 16px; backdrop-filter: blur(12px); text-align: right; }
+.weapon-name { color: #93c5fd; font-size: 14px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.weapon-ammo { font-size: 34px; font-weight: 900; line-height: 1; margin-top: 6px; }
+.weapon-status, .player-hp { color: #cbd5e1; font-size: 13px; margin-top: 6px; }
