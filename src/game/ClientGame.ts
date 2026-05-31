@@ -6,7 +6,9 @@ import {
 } from "@babylonjs/core";
 import { CAMERA_HEIGHT, MOVE_SEND_HZ, PING_INTERVAL_MS } from "../../shared/constants";
 import type { MoveMessage } from "../../shared/types";
+import { formatFireResultMessage } from "../network/NetworkClient";
 import { NetworkClient } from "../network/NetworkClient";
+import { HitFeedback } from "./HitFeedback";
 import { InputController } from "./InputController";
 import { MapBuilder } from "./MapBuilder";
 import { RemotePlayerView } from "./RemotePlayerView";
@@ -24,6 +26,7 @@ export class ClientGame {
   private targetView: TargetView | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private debugHud: DebugHud | null = null;
+  private hitFeedback: HitFeedback | null = null;
   private lastMoveSentAt = 0;
   private lastPingSentAt = 0;
   private currentTransform: MoveMessage = {
@@ -84,6 +87,15 @@ export class ClientGame {
 
     this.targetView = new TargetView(this.scene, this.root);
 
+    this.hitFeedback = new HitFeedback(this.root);
+    this.network.setFireResultHandler((result) => {
+      const message = formatFireResultMessage(result, this.network.sessionId);
+      if (message) this.hitFeedback?.show(message);
+    });
+    this.network.setTargetRespawnedHandler(() => {
+      this.hitFeedback?.show("假人已复活");
+    });
+
     this.debugHud = new DebugHud(this.root);
     this.debugHud.attach();
 
@@ -99,6 +111,8 @@ export class ClientGame {
     this.input?.detach();
     this.remotePlayers?.dispose();
     this.targetView?.dispose();
+    this.hitFeedback?.dispose();
+    this.hitFeedback = null;
     this.debugHud?.detach();
     this.scene?.dispose();
     this.engine?.dispose();
@@ -149,6 +163,8 @@ export class ClientGame {
     this.remotePlayers?.render();
 
     this.targetView?.update(this.network.getTargetsSnapshot());
+
+    this.hitFeedback?.update(now);
 
     this.debugHud?.render(this.createDebugSnapshot(now));
 
