@@ -294,3 +294,4 @@ input:focus {
 .reload-percent { color: #cbd5e1; font-size: 12px; text-align: center; margin-top: 5px; }
 
 .debug-line-chart { display: block; width: 220px; height: 60px; border: 1px solid rgba(148,163,184,0.18); border-radius: 8px; margin-top: 6px; }
+.debug-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; }

@@ -5,7 +5,7 @@ import {
   Vector3
 } from "@babylonjs/core";
 import { CAMERA_HEIGHT, MOVE_SEND_HZ, PING_INTERVAL_MS } from "../../shared/constants";
-import type { MoveMessage } from "../../shared/types";
+import type { MoveMessage, ServerDebugStatsMessage } from "../../shared/types";
 import { formatFireResultMessage, formatWeaponFireResultMessage } from "../network/NetworkClient";
 import { NetworkClient } from "../network/NetworkClient";
 import { HitFeedback } from "./HitFeedback";
@@ -14,7 +14,9 @@ import { MapBuilder } from "./MapBuilder";
 import { RemotePlayerView } from "./RemotePlayerView";
 import { TargetView } from "./TargetView";
 import { DebugHud, type DebugSnapshot } from "./DebugHud";
+import { MetricSeries } from "./DebugMetrics";
 import type { WeaponId } from "../../shared/weapons";
+import { WEAPONS } from "../../shared/weapons";
 import { WeaponView } from "./WeaponView";
 import { GameAudio } from "./GameAudio";
 import { AiEnemyView } from "./AiEnemyView";
@@ -50,6 +52,21 @@ export class ClientGame {
     z: 0,
     rotationY: 0
   };
+
+  // Metrics
+  private fpsSeries = new MetricSeries(120);
+  private frameTimeSeries = new MetricSeries(120);
+  private fireSendSeries = new MetricSeries(120);
+  private serverTickSeries = new MetricSeries(120);
+  private lastFrameAt = 0;
+  private lastDebugHudRenderAt = 0;
+  private serverDebugStats: ServerDebugStatsMessage | null = null;
+
+  // RPM throttle
+  private nextLocalFireAt = 0;
+
+  // Fire held state
+  private isFireHeld = false;
 
   constructor(root: HTMLDivElement, network: NetworkClient) {
     this.root = root;
@@ -100,9 +117,7 @@ export class ClientGame {
 
     const initial = this.getInitialLocalTransform();
     this.input = new InputController(canvas, initial, {
-      onFireHeld: () => {
-        this.network.sendWeaponFire(this.activeWeaponId, performance.now());
-      },
+      onFireHeld: () => { this.isFireHeld = true; },
       onReload: () => { this.network.sendReload(this.activeWeaponId, performance.now()); this.gameAudio.playReload(); },
       onSwitchWeapon: (weaponId) => { this.activeWeaponId = weaponId; this.network.sendSwitchWeapon(weaponId, performance.now()); this.weaponView?.setActiveWeapon(weaponId); }
     });
@@ -158,6 +173,11 @@ export class ClientGame {
         this.gameAudio.playDamage();
         this.hitFeedback?.show(`受到 ${message.damage} 点伤害，HP: ${message.hp}`);
       }
+    });
+
+    this.network.setServerDebugStatsHandler((stats) => {
+      this.serverDebugStats = stats;
+      this.serverTickSeries.push(stats.tickMs);
     });
 
     this.debugHud = new DebugHud(this.root);
@@ -216,6 +236,20 @@ export class ClientGame {
     this.camera.rotation.y = this.currentTransform.rotationY;
 
     const now = performance.now();
+
+    // Sync fire held state from input and try RPM-throttled fire
+    if (this.input) this.isFireHeld = this.input.isFireHeld();
+    this.trySendHeldFire(now);
+
+    // FPS / frame time tracking
+    if (this.lastFrameAt > 0) {
+      const deltaMs = now - this.lastFrameAt;
+      const fps = 1000 / deltaMs;
+      this.fpsSeries.push(fps);
+      this.frameTimeSeries.push(deltaMs);
+    }
+    this.lastFrameAt = now;
+
     const weaponPunch = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY, deltaSeconds);
     // Apply visual recoil punch on top of real aim, but DON'T modify real pitch
     this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) + this.damagePunch;
@@ -255,7 +289,11 @@ export class ClientGame {
 
     this.reloadProgress?.render(this.activeWeaponId, this.network.getLocalWeaponSnapshots(), performance.now());
 
-    this.debugHud?.render(this.createDebugSnapshot(now));
+    if (now - this.lastDebugHudRenderAt >= 200) {
+      this.lastDebugHudRenderAt = now;
+      this.fireSendSeries.push(this.network.getNetworkDebugStats(now).fireSendsPerSecond);
+      this.debugHud?.render(this.createDebugSnapshot(now));
+    }
 
     this.scene.render();
   }
@@ -346,10 +384,21 @@ export class ClientGame {
     this.lastPingSentAt = now;
   }
 
+  private trySendHeldFire(now: number): void {
+    if (!this.isFireHeld) return;
+    const weapon = WEAPONS[this.activeWeaponId];
+    const fireIntervalMs = 60000 / weapon.rpm;
+    if (now < this.nextLocalFireAt) return;
+    this.network.sendWeaponFire(this.activeWeaponId, now);
+    this.nextLocalFireAt = now + fireIntervalMs;
+  }
+
   private createDebugSnapshot(now: number): DebugSnapshot {
     const players = this.network.getPlayersSnapshot();
     const targets = this.network.getTargetsSnapshot();
     const primaryTarget = targets[0] ?? null;
+    const netStats = this.network.getNetworkDebugStats(now);
+    const pingSeries = this.network.getPingSeries();
 
     return {
       roomId: this.network.roomId,
@@ -361,13 +410,42 @@ export class ClientGame {
       localY: this.currentTransform.y,
       localZ: this.currentTransform.z,
       localRotationY: this.currentTransform.rotationY,
+      pitch: this.currentTransform.pitch,
       moveSendHzTarget: MOVE_SEND_HZ,
       lastMoveSentMsAgo: this.lastMoveSentAt > 0 ? now - this.lastMoveSentAt : null,
       remoteUpdateAgeMs: this.remotePlayers?.getNewestSnapshotAgeMs() ?? null,
+      // ping
       pingEstimateMs: this.network.getPingEstimateMs(),
-      pitch: this.currentTransform.pitch,
+      pingAvg: pingSeries.getAverage(),
+      pingMin: pingSeries.getMin(),
+      pingMax: pingSeries.getMax(),
+      pingJitter: pingSeries.getJitter(),
+      // fps
+      fps: this.fpsSeries.getLatest(),
+      fpsAvg: this.fpsSeries.getAverage(),
+      frameMs: this.frameTimeSeries.getLatest(),
+      frameMsAvg: this.frameTimeSeries.getAverage(),
+      // network rates
+      moveSendsPerSecond: netStats.moveSendsPerSecond,
+      fireSendsPerSecond: netStats.fireSendsPerSecond,
+      reloadSendsPerSecond: netStats.reloadSendsPerSecond,
+      messagesReceivedPerSecond: netStats.messagesReceivedPerSecond,
+      webSocketBufferedAmount: netStats.webSocketBufferedAmount,
+      // server
+      serverTickMs: this.serverDebugStats?.tickMs ?? null,
+      serverAiUpdateMs: this.serverDebugStats?.aiUpdateMs ?? null,
+      serverFireProcessingMs: this.serverDebugStats?.fireProcessingMs ?? null,
+      serverFireAcceptedPerSec: this.serverDebugStats?.fireAcceptedPerSecond ?? null,
+      serverFireRejectedPerSec: this.serverDebugStats?.fireRejectedPerSecond ?? null,
+      serverAliveAiCount: this.serverDebugStats?.aliveAiCount ?? null,
+      // target
       targetHp: primaryTarget?.hp ?? null,
-      targetAlive: primaryTarget?.alive ?? null
+      targetAlive: primaryTarget?.alive ?? null,
+      // series refs
+      pingSeries,
+      fpsSeries: this.fpsSeries,
+      fireSendSeries: this.fireSendSeries,
+      serverTickSeries: this.serverTickSeries,
     };
   }
 }

@@ -2,6 +2,7 @@ import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME } from "../../shared/constants";
 import type { AiEventMessage, ClientPlayerSnapshot, FireResultMessage, MoveMessage, PlayerDamagedMessage, PlayerWeaponSnapshot, ReloadResult, ServerDebugStatsMessage, TargetSnapshot, WeaponFireResult } from "../../shared/types";
 import { WEAPONS, type WeaponId } from "../../shared/weapons";
+import { MetricWindowCounter, MetricSeries } from "../game/DebugMetrics";
 
 export type EndpointInput = {
   isDev: boolean;
@@ -82,6 +83,12 @@ export class NetworkClient {
   private currentStatus: ConnectionStatus = "idle";
   private lastLeftSessionId: string | null = null;
   private pingEstimateMs: number | null = null;
+  private moveSendCounter = new MetricWindowCounter(1000);
+  private fireSendCounter = new MetricWindowCounter(1000);
+  private reloadSendCounter = new MetricWindowCounter(1000);
+  private switchWeaponSendCounter = new MetricWindowCounter(1000);
+  private messagesReceivedCounter = new MetricWindowCounter(1000);
+  private pingSeries = new MetricSeries(120);
 
   constructor(events: NetworkClientEvents) {
     this.client = new Client(
@@ -114,6 +121,18 @@ export class NetworkClient {
     return this.pingEstimateMs;
   }
 
+  getPingSeries(): MetricSeries { return this.pingSeries; }
+
+  getNetworkDebugStats(now: number) {
+    return {
+      moveSendsPerSecond: this.moveSendCounter.getRate(now),
+      fireSendsPerSecond: this.fireSendCounter.getRate(now),
+      reloadSendsPerSecond: this.reloadSendCounter.getRate(now),
+      messagesReceivedPerSecond: this.messagesReceivedCounter.getRate(now),
+      webSocketBufferedAmount: null as number | null
+    };
+  }
+
   async createRoom(): Promise<void> {
     await this.connect(() => this.client.create(ROOM_NAME));
   }
@@ -134,6 +153,7 @@ export class NetworkClient {
       return;
     }
 
+    this.moveSendCounter.increment(performance.now());
     this.room.send("move", move);
   }
 
@@ -152,16 +172,19 @@ export class NetworkClient {
 
   sendWeaponFire(weaponId: WeaponId, clientTime: number): void {
     if (!this.room || this.currentStatus !== "connected") return;
+    this.fireSendCounter.increment(performance.now());
     this.room.send("weaponFire", { weaponId, clientTime });
   }
 
   sendReload(weaponId: WeaponId, clientTime: number): void {
     if (!this.room || this.currentStatus !== "connected") return;
+    this.reloadSendCounter.increment(performance.now());
     this.room.send("reload", { weaponId, clientTime });
   }
 
   sendSwitchWeapon(weaponId: WeaponId, clientTime: number): void {
     if (!this.room || this.currentStatus !== "connected") return;
+    this.switchWeaponSendCounter.increment(performance.now());
     this.room.send("switchWeapon", { weaponId, clientTime });
   }
 
@@ -290,6 +313,7 @@ export class NetworkClient {
       });
 
       room.onMessage("playerLeft", (message: { sessionId?: string }) => {
+        this.messagesReceivedCounter.increment(performance.now());
         if (typeof message.sessionId === "string") {
           this.lastLeftSessionId = message.sessionId;
           this.events.onPlayerLeft(message.sessionId);
@@ -297,27 +321,31 @@ export class NetworkClient {
       });
 
       room.onMessage("pong", (message: { clientTime?: unknown }) => {
+        this.messagesReceivedCounter.increment(performance.now());
         if (typeof message.clientTime !== "number") {
           return;
         }
 
         this.pingEstimateMs = calculatePingEstimateMs(message.clientTime, performance.now());
+        this.pingSeries.push(this.pingEstimateMs!);
       });
 
       room.onMessage("fireResult", (message: FireResultMessage) => {
+        this.messagesReceivedCounter.increment(performance.now());
         this.events.onFireResult(message);
       });
       room.onMessage("targetRespawned", (message: { targetId?: unknown }) => {
+        this.messagesReceivedCounter.increment(performance.now());
         if (typeof message.targetId === "string") {
           this.events.onTargetRespawned(message.targetId);
         }
       });
 
-      room.onMessage("weaponFireResult", (message: WeaponFireResult) => { this.events.onWeaponFireResult(message); });
-      room.onMessage("reloadResult", (message: ReloadResult) => { this.events.onReloadResult(message); });
-      room.onMessage("playerDamaged", (message: PlayerDamagedMessage) => { this.events.onPlayerDamaged(message); });
-      room.onMessage("aiEvent", (message: AiEventMessage) => { this.events.onAiEvent(message); });
-      room.onMessage("serverDebugStats", (message: ServerDebugStatsMessage) => { this.events.onServerDebugStats(message); });
+      room.onMessage("weaponFireResult", (message: WeaponFireResult) => { this.messagesReceivedCounter.increment(performance.now()); this.events.onWeaponFireResult(message); });
+      room.onMessage("reloadResult", (message: ReloadResult) => { this.messagesReceivedCounter.increment(performance.now()); this.events.onReloadResult(message); });
+      room.onMessage("playerDamaged", (message: PlayerDamagedMessage) => { this.messagesReceivedCounter.increment(performance.now()); this.events.onPlayerDamaged(message); });
+      room.onMessage("aiEvent", (message: AiEventMessage) => { this.messagesReceivedCounter.increment(performance.now()); this.events.onAiEvent(message); });
+      room.onMessage("serverDebugStats", (message: ServerDebugStatsMessage) => { this.messagesReceivedCounter.increment(performance.now()); this.events.onServerDebugStats(message); });
     } catch (error) {
       this.room = null;
       this.setStatus("idle");

@@ -15,7 +15,7 @@ export class InputController {
   private position = new Vector3(0, CAMERA_HEIGHT, 0);
   private isPointerLocked = false;
   private callbacks: WeaponInputCallbacks;
-  private isFireHeld = false;
+  private _isFireHeld = false;
 
   constructor(canvas: HTMLCanvasElement, initial: MoveMessage, callbacks: Partial<WeaponInputCallbacks> = {}) {
     this.canvas = canvas;
@@ -57,12 +57,13 @@ export class InputController {
       const resolved = resolveMapMovement({ x: this.position.x, z: this.position.z }, { x: this.position.x + movement.x, z: this.position.z + movement.z });
       this.position.x = resolved.x; this.position.y = CAMERA_HEIGHT; this.position.z = resolved.z;
     }
-    if (this.isFireHeld && this.isPointerLocked) this.callbacks.onFireHeld();
+    if (this._isFireHeld && this.isPointerLocked) this.callbacks.onFireHeld();
     return { x: this.position.x, y: CAMERA_HEIGHT, z: this.position.z, rotationY: this.yaw, pitch: this.pitch };
   }
 
   getPitch(): number { return this.pitch; }
   isMouseLocked(): boolean { return this.isPointerLocked; }
+  isFireHeld(): boolean { return this._isFireHeld; }
 
   private requestPointerLock = (): void => { void this.canvas.requestPointerLock(); };
   private handleKeyDown = (event: KeyboardEvent): void => {
@@ -79,7 +80,7 @@ export class InputController {
     this.pitch += event.movementY * sensitivity;
     this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
   };
-  private handleMouseDown = (event: MouseEvent): void => { if (event.button === 0 && this.isPointerLocked) this.isFireHeld = true; };
-  private handleMouseUp = (event: MouseEvent): void => { if (event.button === 0) this.isFireHeld = false; };
+  private handleMouseDown = (event: MouseEvent): void => { if (event.button === 0 && this.isPointerLocked) this._isFireHeld = true; };
+  private handleMouseUp = (event: MouseEvent): void => { if (event.button === 0) this._isFireHeld = false; };
   private handlePointerLockChange = (): void => { this.isPointerLocked = document.pointerLockElement === this.canvas; };
 }
