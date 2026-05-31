@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculatePingEstimateMs,
   getColyseusEndpoint,
   mapJoinErrorToMessage
 } from "../../src/network/NetworkClient";
@@ -45,5 +46,9 @@ describe("NetworkClient helpers", () => {
     expect(mapJoinErrorToMessage(new Error("anything else"))).toBe(
       "连接失败，请稍后重试"
     );
+  });
+
+  it("calculates ping from a pong client timestamp", () => {
+    expect(calculatePingEstimateMs(1000, 1137)).toBe(137);
   });
 });

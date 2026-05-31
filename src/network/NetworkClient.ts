@@ -36,6 +36,10 @@ export function mapJoinErrorToMessage(error: unknown): string {
   return "连接失败，请稍后重试";
 }
 
+export function calculatePingEstimateMs(clientTime: number, receivedAt: number): number {
+  return Math.max(0, Math.round(receivedAt - clientTime));
+}
+
 export type NetworkClientEvents = {
   onStatusChange(status: ConnectionStatus): void;
   onError(message: string): void;
@@ -48,6 +52,7 @@ export class NetworkClient {
   private events: NetworkClientEvents;
   private currentStatus: ConnectionStatus = "idle";
   private lastLeftSessionId: string | null = null;
+  private pingEstimateMs: number | null = null;
 
   constructor(events: NetworkClientEvents) {
     this.client = new Client(
@@ -76,6 +81,10 @@ export class NetworkClient {
     return this.lastLeftSessionId;
   }
 
+  getPingEstimateMs(): number | null {
+    return this.pingEstimateMs;
+  }
+
   async createRoom(): Promise<void> {
     await this.connect(() => this.client.create(ROOM_NAME));
   }
@@ -97,6 +106,14 @@ export class NetworkClient {
     }
 
     this.room.send("move", move);
+  }
+
+  sendPing(clientTime: number): void {
+    if (!this.room || this.currentStatus !== "connected") {
+      return;
+    }
+
+    this.room.send("ping", { clientTime });
   }
 
   getPlayersSnapshot(): ClientPlayerSnapshot[] {
@@ -158,6 +175,14 @@ export class NetworkClient {
           this.lastLeftSessionId = message.sessionId;
           this.events.onPlayerLeft(message.sessionId);
         }
+      });
+
+      room.onMessage("pong", (message: { clientTime?: unknown }) => {
+        if (typeof message.clientTime !== "number") {
+          return;
+        }
+
+        this.pingEstimateMs = calculatePingEstimateMs(message.clientTime, performance.now());
       });
     } catch (error) {
       this.room = null;

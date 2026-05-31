@@ -8,6 +8,15 @@ import {
 import { GameState } from "./schema/GameState.js";
 import { createPlayerState } from "./schema/PlayerState.js";
 
+type PingMessage = {
+  clientTime?: unknown;
+};
+
+type PongMessage = {
+  clientTime: number;
+  serverTime: number;
+};
+
 export class GameRoom extends Room<{ state: GameState }> {
   maxClients = MAX_PLAYERS;
 
@@ -16,6 +25,14 @@ export class GameRoom extends Room<{ state: GameState }> {
 
     this.onMessage("move", (client, message: unknown) => {
       this.handleMove(client.sessionId, message);
+    });
+
+    this.onMessage("ping", (client, message: PingMessage) => {
+      const pong = this.createPong(message);
+
+      if (pong) {
+        client.send("pong", pong);
+      }
     });
   }
 
@@ -37,6 +54,27 @@ export class GameRoom extends Room<{ state: GameState }> {
 
   handleMoveForTest(sessionId: string, message: unknown): void {
     this.handleMove(sessionId, message);
+  }
+
+  createPongForTest(message: PingMessage): PongMessage {
+    const pong = this.createPong(message);
+
+    if (!pong) {
+      throw new Error("INVALID_PING");
+    }
+
+    return pong;
+  }
+
+  private createPong(message: PingMessage): PongMessage | null {
+    if (typeof message.clientTime !== "number" || !Number.isFinite(message.clientTime)) {
+      return null;
+    }
+
+    return {
+      clientTime: message.clientTime,
+      serverTime: Date.now()
+    };
   }
 
   private handleMove(sessionId: string, message: unknown): void {

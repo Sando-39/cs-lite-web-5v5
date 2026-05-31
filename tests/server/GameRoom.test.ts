@@ -84,4 +84,12 @@ describe("GameRoom", () => {
 
     expect(room.state.players.get("a")?.x).toBe(before);
   });
+
+  it("creates a pong payload from a ping payload", () => {
+    const room = new GameRoom();
+    const pong = room.createPongForTest({ clientTime: 123 });
+
+    expect(pong.clientTime).toBe(123);
+    expect(typeof pong.serverTime).toBe("number");
+  });
 });
