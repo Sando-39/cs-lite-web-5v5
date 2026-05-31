@@ -1,3 +1,5 @@
+import type { WeaponId } from "./weapons.js";
+
 export type PlayerColor = "blue" | "orange";
 
 export type MoveMessage = {
@@ -38,6 +40,10 @@ export type ServerPlayerRecord = {
   pitch: number;
   color: PlayerColor;
   lastMoveAt: number;
+  hp: number;
+  maxHp: number;
+  lastDamagedAt: number;
+  activeWeaponId: WeaponId;
 };
 
 export type ClientPlayerSnapshot = {
@@ -49,6 +55,10 @@ export type ClientPlayerSnapshot = {
   rotationY: number;
   pitch: number;
   color: PlayerColor;
+  hp: number;
+  maxHp: number;
+  lastDamagedAt: number;
+  activeWeaponId: WeaponId;
 };
 
 export type TargetSnapshot = {
@@ -64,3 +74,37 @@ export type TargetSnapshot = {
   alive: boolean;
   respawnAt: number;
 };
+
+export type PlayerWeaponSnapshot = {
+  weaponId: WeaponId;
+  ammoInMag: number;
+  reserveAmmo: number;
+  isReloading: boolean;
+  reloadEndsAt: number;
+  nextFireAt: number;
+  currentSpread: number;
+  recoilIndex: number;
+};
+
+export type WeaponFireMessage = { weaponId: WeaponId; clientTime: number };
+export type ReloadWeaponMessage = { weaponId: WeaponId; clientTime: number };
+export type SwitchWeaponMessage = { weaponId: WeaponId; clientTime: number };
+
+export type WeaponFireResultReason = "fired" | "cooldown" | "empty_mag" | "reloading" | "invalid_weapon";
+
+export type WeaponFireResult = {
+  shooterSessionId: string; weaponId: WeaponId; accepted: boolean;
+  reason: WeaponFireResultReason; ammoInMag: number; reserveAmmo: number;
+  hit: boolean; targetType: "ai" | "static_target" | null;
+  targetId: string | null; damage: number; targetHp: number | null; targetKilled: boolean;
+};
+
+export type ReloadResultReason = "started" | "full_mag" | "no_reserve" | "already_reloading" | "invalid_weapon";
+
+export type ReloadResult = {
+  sessionId: string; weaponId: WeaponId; started: boolean;
+  reason: ReloadResultReason; reloadEndsAt: number;
+};
+
+export type PlayerDamagedMessage = { sessionId: string; damage: number; hp: number; source: "ai"; sourceId: string };
+export type AiEventMessage = { aiId: string; type: "damaged" | "killed" | "respawned" | "fired" };

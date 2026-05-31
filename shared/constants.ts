@@ -16,3 +16,21 @@ export const RIFLE_DAMAGE = 25;
 export const TARGET_MAX_HP = 100;
 export const TARGET_RESPAWN_DELAY_MS = 3000;
 export const FIRE_FEEDBACK_DURATION_MS = 1500;
+
+export const PLAYER_MAX_HP = 100;
+export const PLAYER_MIN_HP = 1;
+export const PLAYER_REGEN_DELAY_MS = 3000;
+export const PLAYER_REGEN_PER_SECOND = 10;
+export const DAMAGE_PUNCH_PITCH = 0.08;
+
+export const AI_COUNT = 3;
+export const AI_MAX_HP = 100;
+export const AI_RESPAWN_DELAY_MS = 5000;
+export const AI_MOVE_SPEED_UNITS_PER_SECOND = 2.2;
+export const AI_DETECTION_RANGE_UNITS = 18;
+export const AI_FIELD_OF_VIEW_DEGREES = 120;
+export const AI_FIRE_INTERVAL_MS = 900;
+export const AI_DAMAGE = 12;
+
+export const WEAPON_SPREAD_MOVING_MULTIPLIER = 1.6;
+export const MUZZLE_FLASH_DURATION_MS = 70;
