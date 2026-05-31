@@ -1,4 +1,4 @@
-# CS-Lite Web v0.4
+# CS-Lite Web v0.4.3
 
 A browser-based multiplayer FPS training field with weapons, AI, and server-authoritative combat.
 
@@ -155,10 +155,10 @@ Render Free Web Services can sleep after inactivity and wake on a later HTTP req
 - [ ] Stopping the server shows a disconnected state instead of a blank screen
 ```
 
-## Public v0.1 Test URL
+## Public Test URL
 
 ```text
-https://cs-lite-web-5v5.onrender.com
+http://152.136.24.49:2567
 ```
 
-Use this URL to create a room and invite one friend with the room code.
+使用此地址创建房间并把房间码发给朋友即可联机。
