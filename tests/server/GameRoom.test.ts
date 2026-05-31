@@ -9,6 +9,16 @@ function makeClient(sessionId: string): Client {
   } as unknown as Client;
 }
 
+function makeClientWithMessages(sessionId: string): Client {
+  return {
+    sessionId,
+    sent: [],
+    send(type: string, message: unknown) {
+      (this as unknown as { sent: Array<{ type: string; message: unknown }> }).sent.push({ type, message });
+    }
+  } as unknown as Client;
+}
+
 describe("GameRoom", () => {
   it("adds players on join", () => {
     const room = new GameRoom();
@@ -104,5 +114,71 @@ describe("GameRoom", () => {
 
     expect(pong.clientTime).toBe(123);
     expect(typeof pong.serverTime).toBe("number");
+  });
+
+  it("damages the static target when fire hits", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const client = makeClientWithMessages("a");
+    room.onJoin(client);
+    const player = room.state.players.get("a");
+    expect(player).toBeDefined();
+    player!.x = 0; player!.y = 1.0; player!.z = -20;
+    player!.rotationY = 0; player!.pitch = 0;
+    room.handleFireForTest("a", { clientTime: 123 });
+    const target = room.state.targets.get("target-1");
+    expect(target?.hp).toBe(75);
+    expect(target?.alive).toBe(true);
+  });
+
+  it("does not damage the static target when fire misses", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const client = makeClientWithMessages("a");
+    room.onJoin(client);
+    const player = room.state.players.get("a");
+    player!.x = 0; player!.y = 1.0; player!.z = -20;
+    player!.rotationY = Math.PI; player!.pitch = 0;
+    room.handleFireForTest("a", { clientTime: 123 });
+    expect(room.state.targets.get("target-1")?.hp).toBe(100);
+  });
+
+  it("kills the target after four hits", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const client = makeClientWithMessages("a");
+    room.onJoin(client);
+    const player = room.state.players.get("a");
+    player!.x = 0; player!.y = 1.0; player!.z = -20;
+    player!.rotationY = 0; player!.pitch = 0;
+    room.handleFireForTest("a", { clientTime: 1 });
+    room.handleFireForTest("a", { clientTime: 2 });
+    room.handleFireForTest("a", { clientTime: 3 });
+    room.handleFireForTest("a", { clientTime: 4 });
+    const target = room.state.targets.get("target-1");
+    expect(target?.hp).toBe(0);
+    expect(target?.alive).toBe(false);
+    expect(target?.respawnAt).toBeGreaterThan(0);
+  });
+
+  it("ignores malformed fire messages", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const client = makeClientWithMessages("a");
+    room.onJoin(client);
+    room.handleFireForTest("a", { clientTime: "bad" });
+    expect(room.state.targets.get("target-1")?.hp).toBe(100);
+  });
+
+  it("respawns a dead target when respawn time is reached", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const target = room.state.targets.get("target-1");
+    expect(target).toBeDefined();
+    target!.hp = 0; target!.alive = false; target!.respawnAt = 5000;
+    room.respawnTargetsIfReady(5000);
+    expect(target!.hp).toBe(100);
+    expect(target!.alive).toBe(true);
+    expect(target!.respawnAt).toBe(0);
   });
 });

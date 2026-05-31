@@ -1,5 +1,6 @@
 import { Room, type Client } from "colyseus";
-import { MAX_PLAYERS } from "../../shared/constants.js";
+import { MAX_PLAYERS, RIFLE_DAMAGE } from "../../shared/constants.js";
+import type { FireMessage, FireResultMessage } from "../../shared/types.js";
 import { createPlayerRecord } from "../logic/playerSlots.js";
 import {
   normalizeMoveMessage,
@@ -9,6 +10,7 @@ import { STATIC_TARGETS } from "../../shared/staticTargets.js";
 import { GameState } from "./schema/GameState.js";
 import { createPlayerState } from "./schema/PlayerState.js";
 import { createTargetState } from "./schema/TargetState.js";
+import { applyTargetDamage, createShotRay, intersectRayWithStaticTarget, respawnTargetIfReady } from "../logic/combat.js";
 
 type PingMessage = {
   clientTime?: unknown;
@@ -40,6 +42,14 @@ export class GameRoom extends Room<{ state: GameState }> {
         client.send("pong", pong);
       }
     });
+
+    this.onMessage("fire", (client, message: unknown) => {
+      this.handleFire(client.sessionId, message);
+    });
+
+    this.setSimulationInterval(() => {
+      this.respawnTargetsIfReady(Date.now());
+    }, 250);
   }
 
   onJoin(client: Client): void {
@@ -70,6 +80,21 @@ export class GameRoom extends Room<{ state: GameState }> {
     }
 
     return pong;
+  }
+
+  handleFireForTest(sessionId: string, message: unknown): FireResultMessage | null {
+    return this.handleFire(sessionId, message);
+  }
+
+  respawnTargetsIfReady(now: number): void {
+    for (const target of this.state.targets.values()) {
+      const result = respawnTargetIfReady(target, now);
+      if (!result.respawned) continue;
+      target.hp = result.hp;
+      target.alive = result.alive;
+      target.respawnAt = result.respawnAt;
+      this.broadcast("targetRespawned", { targetId: target.id, hp: target.hp });
+    }
   }
 
   private createPong(message: PingMessage): PongMessage | null {
@@ -122,5 +147,48 @@ export class GameRoom extends Room<{ state: GameState }> {
     player.rotationY = result.rotationY;
     player.pitch = result.pitch;
     player.lastMoveAt = Date.now();
+  }
+
+  private handleFire(sessionId: string, message: unknown): FireResultMessage | null {
+    const fire = this.normalizeFireMessage(message);
+    if (!fire) return null;
+    const player = this.state.players.get(sessionId);
+    if (!player) {
+      const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: null, damage: 0, targetHp: null, targetKilled: false, reason: "invalid_player" };
+      this.broadcast("fireResult", result);
+      return result;
+    }
+    const target = this.state.targets.get("target-1");
+    if (!target) {
+      const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: null, damage: 0, targetHp: null, targetKilled: false, reason: "miss" };
+      this.broadcast("fireResult", result);
+      return result;
+    }
+    if (!target.alive) {
+      const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: target.id, damage: 0, targetHp: target.hp, targetKilled: false, reason: "target_dead" };
+      this.broadcast("fireResult", result);
+      return result;
+    }
+    const ray = createShotRay({ x: player.x, y: player.y, z: player.z, rotationY: player.rotationY, pitch: player.pitch });
+    const hit = intersectRayWithStaticTarget(ray, target);
+    if (!hit) {
+      const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: target.id, damage: 0, targetHp: target.hp, targetKilled: false, reason: "miss" };
+      this.broadcast("fireResult", result);
+      return result;
+    }
+    const damage = applyTargetDamage(target, RIFLE_DAMAGE, Date.now());
+    target.hp = damage.hp;
+    target.alive = damage.alive;
+    target.respawnAt = damage.respawnAt;
+    const result: FireResultMessage = { shooterSessionId: sessionId, hit: true, targetId: target.id, damage: RIFLE_DAMAGE, targetHp: target.hp, targetKilled: damage.killed, reason: "hit" };
+    this.broadcast("fireResult", result);
+    return result;
+  }
+
+  private normalizeFireMessage(message: unknown): FireMessage | null {
+    if (!message || typeof message !== "object") return null;
+    const candidate = message as Record<string, unknown>;
+    if (typeof candidate.clientTime !== "number" || !Number.isFinite(candidate.clientTime)) return null;
+    return { clientTime: candidate.clientTime };
   }
 }
