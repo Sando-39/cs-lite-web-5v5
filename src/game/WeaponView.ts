@@ -5,11 +5,7 @@ import { getWeaponConfig, type WeaponId } from "../../shared/weapons";
 export type RecoilOffset = { pitch: number; yaw: number };
 
 export function applyRecoilImpulse(current: RecoilOffset, impulse: { vertical: number; horizontal: number }, direction: number): RecoilOffset {
-  return { pitch: current.pitch + impulse.vertical, yaw: current.yaw + impulse.horizontal * direction };
-}
-
-export function recoverRecoil(current: RecoilOffset, amount: number): RecoilOffset {
-  return { pitch: approachZero(current.pitch, amount), yaw: approachZero(current.yaw, amount) };
+  return { pitch: current.pitch - impulse.vertical, yaw: current.yaw + impulse.horizontal * direction };
 }
 
 export class WeaponView {
@@ -20,6 +16,7 @@ export class WeaponView {
   private muzzleFlash: Mesh;
   private flashUntil = 0;
   private recoil: RecoilOffset = { pitch: 0, yaw: 0 };
+  private visualPunch: RecoilOffset = { pitch: 0, yaw: 0 };
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -37,6 +34,7 @@ export class WeaponView {
 
   playFire(weaponId: WeaponId): void {
     const config = getWeaponConfig(weaponId);
+    this.visualPunch = { pitch: this.visualPunch.pitch - config.verticalRecoil * 0.5, yaw: this.visualPunch.yaw + config.horizontalRecoil * (Math.random() > 0.5 ? 1 : -1) * 0.5 };
     this.recoil = applyRecoilImpulse(this.recoil, { vertical: config.verticalRecoil, horizontal: config.horizontalRecoil }, Math.random() > 0.5 ? 1 : -1);
     this.muzzleFlash.scaling.setAll(config.muzzleFlashScale);
     this.muzzleFlash.setEnabled(true);
@@ -48,14 +46,14 @@ export class WeaponView {
     if (weapon) weapon.position.y = -0.18;
   }
 
-  update(cameraPosition: { x: number; y: number; z: number }, cameraRotationY: number): RecoilOffset {
+  update(cameraPosition: { x: number; y: number; z: number }, cameraRotationY: number): { pitchOffset: number; yawOffset: number } {
     this.root.position.set(cameraPosition.x, cameraPosition.y - 0.25, cameraPosition.z);
     this.root.rotation.y = cameraRotationY;
-    this.recoil = recoverRecoil(this.recoil, 0.006);
+    this.visualPunch = { pitch: approachZero(this.visualPunch.pitch, 0.003), yaw: approachZero(this.visualPunch.yaw, 0.003) };
     if (performance.now() >= this.flashUntil) this.muzzleFlash.setEnabled(false);
     const weapon = this.meshes.get(this.activeWeaponId);
     if (weapon) weapon.position.y = approach(weapon.position.y, -0.35, 0.025);
-    return this.recoil;
+    return { pitchOffset: this.recoil.pitch + this.visualPunch.pitch, yawOffset: this.recoil.yaw + this.visualPunch.yaw };
   }
 
   dispose(): void { this.root.dispose(); }
