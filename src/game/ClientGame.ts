@@ -169,7 +169,7 @@ export class ClientGame {
 
     this.network.setPlayerDamagedHandler((message) => {
       if (message.sessionId === this.network.sessionId) {
-        this.damagePunch = 0.08;
+        this.damagePunch = -0.2;
         this.gameAudio.playDamage();
         this.hitFeedback?.show(`受到 ${message.damage} 点伤害，HP: ${message.hp}`);
       }
@@ -252,11 +252,11 @@ export class ClientGame {
 
     const weaponPunch = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY, deltaSeconds);
     // Apply visual recoil punch on top of real aim, but DON'T modify real pitch
-    this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) - this.damagePunch;
+    this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) + this.damagePunch;
     this.camera.rotation.y += weaponPunch?.yawPunch ?? 0;
 
     // Recover damage punch
-    this.damagePunch = this.damagePunch > 0.001 ? this.damagePunch * 0.88 : 0;
+    this.damagePunch = Math.abs(this.damagePunch) > 0.001 ? this.damagePunch * 0.88 : 0;
 
     this.tracerView?.update(now);
 
