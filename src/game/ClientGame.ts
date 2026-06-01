@@ -61,6 +61,7 @@ export class ClientGame {
   private serverTickSeries = new MetricSeries(120);
   private lastFrameAt = 0;
   private lastDebugHudRenderAt = 0;
+  private _lastPerfLogAt = 0;
   private serverDebugStats: ServerDebugStatsMessage | null = null;
 
   // RPM throttle
@@ -290,9 +291,23 @@ export class ClientGame {
 
     this.reloadProgress?.render(this.activeWeaponId, this.network.getLocalWeaponSnapshots(), performance.now());
 
+    // Auto-log perf metrics to console every 5s
+    if (this.lastFrameAt > 0 && now - (this._lastPerfLogAt ?? 0) >= 5000) {
+      this._lastPerfLogAt = now;
+      const s = this.createDebugSnapshot(now);
+      console.log("PERF_LOG", JSON.stringify({
+        fps: s.fps, fpsAvg: s.fpsAvg, frameMs: s.frameMs,
+        ping: s.pingEstimateMs, pingAvg: s.pingAvg, pingMax: s.pingMax,
+        fireSends: s.fireSendsPerSecond, msgRecv: s.messagesReceivedPerSecond,
+        svTickMs: s.serverTickMs, svAiMs: s.serverAiUpdateMs, svFireMs: s.serverFireProcessingMs,
+        svFireAcc: s.serverFireAcceptedPerSec, svFireRej: s.serverFireRejectedPerSec
+      }));
+    }
+
     if (now - this.lastDebugHudRenderAt >= 200) {
       this.lastDebugHudRenderAt = now;
-      this.fireSendSeries.push(this.network.getNetworkDebugStats(now).fireSendsPerSecond);
+      const netStats = this.network.getNetworkDebugStats(now);
+      this.fireSendSeries.push(netStats.fireSendsPerSecond);
       this.debugHud?.render(this.createDebugSnapshot(now));
     }
 
