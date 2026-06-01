@@ -252,7 +252,7 @@ export class ClientGame {
 
     const weaponPunch = this.weaponView?.update(this.camera.position, this.currentTransform.rotationY, deltaSeconds);
     // Apply visual recoil punch on top of real aim, but DON'T modify real pitch
-    this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) + this.damagePunch;
+    this.camera.rotation.x = this.input.getPitch() + (weaponPunch?.pitchPunch ?? 0) - this.damagePunch;
     this.camera.rotation.y += weaponPunch?.yawPunch ?? 0;
 
     // Recover damage punch
