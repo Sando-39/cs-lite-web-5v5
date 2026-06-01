@@ -18,6 +18,10 @@ function makePlayer(overrides: Partial<ServerPlayerRecord> = {}): ServerPlayerRe
     pitch: 0,
     color: "blue",
     lastMoveAt: 1000,
+    hp: 100,
+    maxHp: 100,
+    lastDamagedAt: 0,
+    activeWeaponId: "ar4",
     ...overrides
   };
 }

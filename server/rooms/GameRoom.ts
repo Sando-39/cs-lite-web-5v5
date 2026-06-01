@@ -7,6 +7,7 @@ import {
   normalizeMoveMessage,
   validateAndClampMove
 } from "../logic/movement.js";
+import { collidesWithAnyMapCollider } from "../../shared/collision.js";
 import { STATIC_TARGETS } from "../../shared/staticTargets.js";
 import { GameState } from "./schema/GameState.js";
 import { createPlayerState } from "./schema/PlayerState.js";
@@ -124,7 +125,13 @@ export class GameRoom extends Room<{ state: GameState }> {
       throw new Error("ROOM_FULL");
     }
 
-    const slotIndex = this.state.players.size;
+    const occupiedSlots = new Set<number>();
+    for (const p of this.state.players.values()) {
+      const match = p.name.match(/^Player (\d+)$/);
+      if (match) occupiedSlots.add(parseInt(match[1]));
+    }
+    let slotIndex = 0;
+    while (occupiedSlots.has(slotIndex + 1)) slotIndex++;
     const record = createPlayerRecord(client.sessionId, slotIndex, Date.now());
 
     this.state.players.set(client.sessionId, createPlayerState(record));
@@ -310,6 +317,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     if (!normalized || !player) { this.lastFireProcessingMs = performance.now() - fireStart; return null; }
     const weapon = player.weapons.get(normalized.weaponId);
     if (!weapon) { this.lastFireProcessingMs = performance.now() - fireStart; return null; }
+    if (normalized.weaponId !== player.activeWeaponId) { this.lastFireProcessingMs = performance.now() - fireStart; return null; }
     const canFire = canFireWeapon(weapon.toSnapshot(), normalized.weaponId, now);
     if (!canFire.allowed) {
       this.fireRejectedCounter++;
@@ -331,6 +339,17 @@ export class GameRoom extends Room<{ state: GameState }> {
     for (const ai of this.state.aiEnemies.values()) {
       const hit = intersectRayWithAiEnemy(ray, { id: ai.id, x: ai.x, y: ai.y, z: ai.z, radius: 0.5, height: 1.8, alive: ai.alive }, weaponConfig.range);
       if (!hit) continue;
+      // Check if a wall blocks the shot before it reaches this AI
+      const distToAi = Math.sqrt((ai.x - player.x) ** 2 + (ai.z - player.z) ** 2);
+      let blocked = false;
+      const steps = Math.ceil(distToAi / 0.5);
+      for (let s = 1; s < steps; s++) {
+        const t = s * 0.5;
+        const cx = player.x + ray.direction.x * t;
+        const cz = player.z + ray.direction.z * t;
+        if (collidesWithAnyMapCollider(cx, cz, 0.2)) { blocked = true; break; }
+      }
+      if (blocked) continue;
       ai.hp = Math.max(0, ai.hp - weaponConfig.damage);
       hitAiId = ai.id;
       targetHp = ai.hp;

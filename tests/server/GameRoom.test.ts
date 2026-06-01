@@ -217,6 +217,46 @@ describe("GameRoom", () => {
     expect(ai.hp).toBe(76);
   });
 
+  it("rejects fire from an inactive weapon", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    // Active weapon defaults to ar4; try to fire r47
+    const result = room.handleWeaponFireForTest("a", { weaponId: "r47", clientTime: 1000 }, 1000);
+    expect(result).toBeNull();
+  });
+
+  it("assigns the lowest free slot after a player leaves", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a")); // Player 1 (slot 0)
+    room.onJoin(makeClient("b")); // Player 2 (slot 1)
+    // Player "a" leaves, freeing slot 0
+    room.state.players.delete("a");
+    // New player should get "Player 1" (slot 0), not "Player 3"
+    room.onJoin(makeClient("c"));
+    const player = room.state.players.get("c");
+    expect(player?.name).toBe("Player 1");
+  });
+
+  it("does not damage AI when a wall is between shooter and AI", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    room.onJoin(makeClient("a"));
+    const player = room.state.players.get("a")!;
+    // Position player north of cover-a at (-8, 0)
+    player.x = -8; player.y = 1.7; player.z = 0;
+    player.rotationY = Math.PI; // facing south
+    player.pitch = 0;
+    // Move ai-1 behind cover-a at (-8, -8), directly in the line of fire
+    const ai = room.state.aiEnemies.get("ai-1")!;
+    ai.x = -8; ai.z = -8; ai.alive = true;
+    const result = room.handleWeaponFireForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    // The ray passes through cover-a before reaching the AI, so it should not hit
+    expect(result?.hit).toBe(false);
+    expect(ai.hp).toBe(100);
+  });
+
   it("sends weaponFireResult only to shooter, not to other players", () => {
     const room = new GameRoom();
     room.onCreate();

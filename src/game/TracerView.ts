@@ -1,4 +1,4 @@
-import { Color3, Mesh, MeshBuilder, Scene, StandardMaterial, Vector3 } from "@babylonjs/core";
+import { Color3, Mesh, MeshBuilder, Quaternion, Scene, StandardMaterial, Vector3 } from "@babylonjs/core";
 import type { WeaponId } from "../../shared/weapons";
 
 type PooledTracer = { mesh: Mesh; material: StandardMaterial; active: boolean; expiresAt: number };
@@ -35,7 +35,7 @@ export class TracerView {
     tracer.mesh.scaling.y = len;
     tracer.mesh.position = sv.add(ev).scale(0.5);
     const up = new Vector3(0, 1, 0);
-    const quat = Vector3.RotationFromAxis(up, dir.normalize());
+    const quat = Quaternion.RotationQuaternionFromAxis(up, dir.normalize(), Vector3.Cross(up, dir.normalize()));
     tracer.mesh.rotationQuaternion = quat;
     tracer.material.emissiveColor = color;
     tracer.mesh.setEnabled(true);

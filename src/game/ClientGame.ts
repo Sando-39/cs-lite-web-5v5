@@ -50,7 +50,8 @@ export class ClientGame {
     x: 0,
     y: CAMERA_HEIGHT,
     z: 0,
-    rotationY: 0
+    rotationY: 0,
+    pitch: 0
   };
 
   // Metrics
@@ -111,7 +112,7 @@ export class ClientGame {
 
     this.weaponView = new WeaponView(this.scene);
 
-    this.tracerView = new TracerView(this.scene);
+    this.tracerview = new TracerView(this.scene);
 
     this.reloadProgress = new ReloadProgress(this.root);
 
@@ -144,7 +145,7 @@ export class ClientGame {
         this.weaponView?.playAcceptedFire(result.weaponId);
         this.gameAudio.playFire(result.weaponId);
         if (result.tracerStart && result.tracerEnd) {
-          this.tracerView?.spawn(result.tracerStart, result.tracerEnd, result.weaponId);
+          this.tracerview?.spawn(result.tracerStart, result.tracerEnd, result.weaponId);
         }
         if (result.hit) this.gameAudio.playHit();
         const msg = formatWeaponFireResultMessage(result, this.network.sessionId);
@@ -201,8 +202,8 @@ export class ClientGame {
     this.hitFeedback = null;
     this.weaponView?.dispose();
     this.weaponView = null;
-    this.tracerView?.dispose();
-    this.tracerView = null;
+    this.tracerview?.dispose();
+    this.tracerview = null;
     this.weaponHud?.dispose();
     this.weaponHud = null;
     this.reloadProgress?.dispose();
@@ -258,7 +259,7 @@ export class ClientGame {
     // Recover damage punch
     this.damagePunch = Math.abs(this.damagePunch) > 0.001 ? this.damagePunch * 0.88 : 0;
 
-    this.tracerView?.update(now);
+    this.tracerview?.update(now);
 
     this.updateConnectionStatus();
     this.updatePointerHelp();
@@ -359,7 +360,8 @@ export class ClientGame {
         x: 0,
         y: CAMERA_HEIGHT,
         z: 0,
-        rotationY: 0
+        rotationY: 0,
+        pitch: 0
       };
     }
 
@@ -367,7 +369,8 @@ export class ClientGame {
       x: ownPlayer.x,
       y: ownPlayer.y,
       z: ownPlayer.z,
-      rotationY: ownPlayer.rotationY
+      rotationY: ownPlayer.rotationY,
+      pitch: ownPlayer.pitch
     };
   }
 
@@ -399,7 +402,7 @@ export class ClientGame {
     const primaryTarget = targets[0] ?? null;
     const netStats = this.network.getNetworkDebugStats(now);
     const pingSeries = this.network.getPingSeries();
-    const tracerStats = this.tracerView?.getDebugStats() ?? null;
+    const tracerStats = this.tracerview?.getDebugStats() ?? null;
     const aiViewStats = this.aiEnemyView?.getDebugStats() ?? null;
     const weaponHudStats = this.weaponHud?.getDebugStats() ?? null;
     const hitFeedbackStats = this.hitFeedback?.getDebugStats() ?? null;

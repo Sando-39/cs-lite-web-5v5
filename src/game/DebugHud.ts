@@ -44,7 +44,14 @@ export class DebugHud {
   attach(): void { window.addEventListener("keydown", this.handleKeyDown); }
   detach(): void { window.removeEventListener("keydown", this.handleKeyDown); }
 
-  private ensureCharts(): void {
+  private ensureCharts(force = false): void {
+    if (force) {
+      if (this.charts) {
+        for (const chart of Object.values(this.charts)) chart.dispose();
+        this.charts = null;
+        this.chartContainer = null;
+      }
+    }
     if (this.charts) return;
     const container = this.root.querySelector<HTMLDivElement>("#debug-charts");
     if (!container) return;
@@ -61,10 +68,6 @@ export class DebugHud {
     const container = this.root.querySelector<HTMLDivElement>("#debug-hud");
     if (!container) return;
     if (!this.expanded) { container.innerHTML = `<strong>Debug:</strong> F3 展开`; return; }
-
-    // Reset charts so they get recreated with fresh canvases after innerHTML replacement
-    this.charts = null;
-    this.chartContainer = null;
 
     container.innerHTML = `
       <strong>Debug</strong>
@@ -99,7 +102,8 @@ export class DebugHud {
       <div class="debug-hint">F3 收起</div>
     `;
 
-    this.ensureCharts();
+    // Recreate charts with fresh canvases after innerHTML replacement
+    this.ensureCharts(true);
 
     // Update charts
     if (this.charts) {
