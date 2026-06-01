@@ -1,5 +1,5 @@
 import { Room, type Client } from "colyseus";
-import { AI_DAMAGE, AI_DETECTION_RANGE_UNITS, AI_FIELD_OF_VIEW_DEGREES, AI_FIRE_INTERVAL_MS, AI_MOVE_SPEED_UNITS_PER_SECOND, MAX_PLAYERS, PLAYER_REGEN_DELAY_MS, PLAYER_REGEN_PER_SECOND, RIFLE_DAMAGE } from "../../shared/constants.js";
+import { AI_DAMAGE, AI_DETECTION_RANGE_UNITS, AI_FIELD_OF_VIEW_DEGREES, AI_FIRE_INTERVAL_MS, AI_MOVE_SPEED_UNITS_PER_SECOND, AI_UPDATE_INTERVAL_MS, MAX_PLAYERS, PLAYER_REGEN_DELAY_MS, PLAYER_REGEN_PER_SECOND, RIFLE_DAMAGE, SERVER_SIMULATION_INTERVAL_MS } from "../../shared/constants.js";
 import type { FireMessage, FireResultMessage, ReloadResult, WeaponFireMessage, WeaponFireResult } from "../../shared/types.js";
 import { isWeaponId, getWeaponConfig } from "../../shared/weapons.js";
 import { createPlayerRecord } from "../logic/playerSlots.js";
@@ -36,9 +36,31 @@ export class GameRoom extends Room<{ state: GameState }> {
   private fireAcceptedCounter = 0;
   private fireRejectedCounter = 0;
   private lastServerStatsBroadcastAt = 0;
+  private targetedMessagesThisSecond = 0;
+  private broadcastMessagesThisSecond = 0;
+  private lastMessageCounterResetAt = Date.now();
+  private lastAiUpdateAt = Date.now();
+
+  private sendToSession(sessionId: string, type: string, message: unknown): boolean {
+    const client = this.clients.find(c => c.sessionId === sessionId);
+    if (!client) return false;
+    client.send(type, message);
+    return true;
+  }
+
+  private sendTargeted(sessionId: string, type: string, message: unknown): void {
+    if (this.sendToSession(sessionId, type, message)) this.targetedMessagesThisSecond++;
+  }
+
+  private broadcastCounted(type: string, message: unknown): void {
+    this.broadcast(type, message);
+    this.broadcastMessagesThisSecond++;
+  }
 
   onCreate(): void {
     this.setState(new GameState());
+
+    // setPatchRate not available in this Colyseus version
 
     // Static targets removed in v0.4.1 — gameplay uses AI enemies only.
     // for (const targetConfig of STATIC_TARGETS) {
@@ -77,9 +99,15 @@ export class GameRoom extends Room<{ state: GameState }> {
       lastSimAt = now;
       this.completeReloads(now);
       this.recoverWeaponSpread(deltaSeconds);
-      const aiStart = performance.now();
-      this.updateAiEnemies(now, deltaSeconds);
-      this.lastAiUpdateMs = performance.now() - aiStart;
+      if (now - this.lastAiUpdateAt >= AI_UPDATE_INTERVAL_MS) {
+        const aiDeltaSeconds = (now - this.lastAiUpdateAt) / 1000;
+        this.lastAiUpdateAt = now;
+        const aiStart = performance.now();
+        this.updateAiEnemies(now, aiDeltaSeconds);
+        this.lastAiUpdateMs = performance.now() - aiStart;
+      } else {
+        this.lastAiUpdateMs = 0;
+      }
       this.regeneratePlayers(now, deltaSeconds);
       this.respawnTargetsIfReady(now);
       this.lastTickMs = performance.now() - tickStart;
@@ -88,7 +116,7 @@ export class GameRoom extends Room<{ state: GameState }> {
         this.lastServerStatsBroadcastAt = now;
         this.broadcastServerDebugStats(now);
       }
-    }, 250);
+    }, SERVER_SIMULATION_INTERVAL_MS);
   }
 
   onJoin(client: Client): void {
@@ -112,7 +140,7 @@ export class GameRoom extends Room<{ state: GameState }> {
 
   onLeave(client: Client): void {
     this.state.players.delete(client.sessionId);
-    this.broadcast("playerLeft", { sessionId: client.sessionId });
+    this.broadcastCounted("playerLeft", { sessionId: client.sessionId });
   }
 
   handleMoveForTest(sessionId: string, message: unknown): void {
@@ -140,7 +168,7 @@ export class GameRoom extends Room<{ state: GameState }> {
       target.hp = result.hp;
       target.alive = result.alive;
       target.respawnAt = result.respawnAt;
-      this.broadcast("targetRespawned", { targetId: target.id, hp: target.hp });
+      this.broadcastCounted("targetRespawned", { targetId: target.id, hp: target.hp });
     }
   }
 
@@ -206,25 +234,25 @@ export class GameRoom extends Room<{ state: GameState }> {
     const player = this.state.players.get(sessionId);
     if (!player) {
       const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: null, damage: 0, targetHp: null, targetKilled: false, reason: "invalid_player" };
-      this.broadcast("fireResult", result);
+      this.sendTargeted(sessionId, "fireResult", result);
       return result;
     }
     const target = this.state.targets.get("target-1");
     if (!target) {
       const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: null, damage: 0, targetHp: null, targetKilled: false, reason: "miss" };
-      this.broadcast("fireResult", result);
+      this.sendTargeted(sessionId, "fireResult", result);
       return result;
     }
     if (!target.alive) {
       const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: target.id, damage: 0, targetHp: target.hp, targetKilled: false, reason: "target_dead" };
-      this.broadcast("fireResult", result);
+      this.sendTargeted(sessionId, "fireResult", result);
       return result;
     }
     const ray = createShotRay({ x: player.x, y: player.y, z: player.z, rotationY: player.rotationY, pitch: player.pitch });
     const hit = intersectRayWithStaticTarget(ray, target);
     if (!hit) {
       const result: FireResultMessage = { shooterSessionId: sessionId, hit: false, targetId: target.id, damage: 0, targetHp: target.hp, targetKilled: false, reason: "miss" };
-      this.broadcast("fireResult", result);
+      this.sendTargeted(sessionId, "fireResult", result);
       return result;
     }
     const damage = applyTargetDamage(target, RIFLE_DAMAGE, Date.now());
@@ -232,7 +260,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     target.alive = damage.alive;
     target.respawnAt = damage.respawnAt;
     const result: FireResultMessage = { shooterSessionId: sessionId, hit: true, targetId: target.id, damage: RIFLE_DAMAGE, targetHp: target.hp, targetKilled: damage.killed, reason: "hit" };
-    this.broadcast("fireResult", result);
+    this.sendTargeted(sessionId, "fireResult", result);
     return result;
   }
 
@@ -269,7 +297,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     const result = startReload(weapon.toSnapshot(), weaponId, now);
     weapon.applySnapshot(result.weapon);
     const reloadResult: ReloadResult = { sessionId, weaponId, started: result.started, reason: result.reason, reloadEndsAt: result.weapon.reloadEndsAt };
-    this.broadcast("reloadResult", reloadResult);
+    this.sendTargeted(sessionId, "reloadResult", reloadResult);
     return reloadResult;
   }
 
@@ -287,7 +315,7 @@ export class GameRoom extends Room<{ state: GameState }> {
       this.fireRejectedCounter++;
       const rejected: WeaponFireResult = { shooterSessionId: sessionId, weaponId: normalized.weaponId, accepted: false, reason: canFire.reason, ammoInMag: weapon.ammoInMag, reserveAmmo: weapon.reserveAmmo, hit: false, targetType: null, targetId: null, damage: 0, targetHp: null, targetKilled: false };
       if (canFire.reason !== "cooldown") {
-        this.broadcast("weaponFireResult", rejected);
+        this.sendTargeted(sessionId, "weaponFireResult", rejected);
       }
       this.lastFireProcessingMs = performance.now() - fireStart;
       return rejected;
@@ -306,15 +334,14 @@ export class GameRoom extends Room<{ state: GameState }> {
       ai.hp = Math.max(0, ai.hp - weaponConfig.damage);
       hitAiId = ai.id;
       targetHp = ai.hp;
-      this.broadcast("aiEvent", { aiId: ai.id, type: "damaged" });
       if (ai.hp === 0) {
         ai.alive = false; ai.state = "respawning"; ai.respawnAt = now + ai.respawnDelayMs; ai.targetSessionId = ""; targetKilled = true;
-        this.broadcast("aiEvent", { aiId: ai.id, type: "killed" });
+        this.broadcastCounted("aiEvent", { aiId: ai.id, type: "killed" });
       }
       break;
     }
     const result: WeaponFireResult = { shooterSessionId: sessionId, weaponId: normalized.weaponId, accepted: true, reason: "fired", ammoInMag: weapon.ammoInMag, reserveAmmo: weapon.reserveAmmo, hit: hitAiId !== null, targetType: hitAiId ? "ai" : null, targetId: hitAiId, damage: hitAiId ? weaponConfig.damage : 0, targetHp, targetKilled };
-    this.broadcast("weaponFireResult", result);
+    this.sendTargeted(sessionId, "weaponFireResult", result);
     this.lastFireProcessingMs = performance.now() - fireStart;
     return result;
   }
@@ -326,7 +353,7 @@ export class GameRoom extends Room<{ state: GameState }> {
     if (!player) return;
     player.hp = damagePlayerWithoutKilling(player.hp, damage);
     player.lastDamagedAt = now;
-    this.broadcast("playerDamaged", { sessionId, damage, hp: player.hp, source: "ai", sourceId });
+    this.sendTargeted(sessionId, "playerDamaged", { sessionId, damage, hp: player.hp, source: "ai", sourceId });
   }
 
   regeneratePlayersForTest(now: number, deltaSeconds: number): void { this.regeneratePlayers(now, deltaSeconds); }
@@ -357,7 +384,7 @@ export class GameRoom extends Room<{ state: GameState }> {
       if (!ai.alive) {
         if (ai.respawnAt > 0 && now >= ai.respawnAt) {
           ai.hp = ai.maxHp; ai.alive = true; ai.state = "patrol"; ai.respawnAt = 0; ai.targetSessionId = "";
-          this.broadcast("aiEvent", { aiId: ai.id, type: "respawned" });
+          this.broadcastCounted("aiEvent", { aiId: ai.id, type: "respawned" });
         }
         continue;
       }
@@ -368,7 +395,6 @@ export class GameRoom extends Room<{ state: GameState }> {
         if (now >= ai.nextShotAt) {
           ai.nextShotAt = now + AI_FIRE_INTERVAL_MS;
           this.damagePlayer(target.sessionId, ai.id, AI_DAMAGE, now);
-          this.broadcast("aiEvent", { aiId: ai.id, type: "fired" });
         }
         continue;
       }
@@ -391,11 +417,15 @@ export class GameRoom extends Room<{ state: GameState }> {
       aliveAiCount: Array.from(this.state.aiEnemies.values()).filter(a => a.alive).length,
       fireAcceptedPerSecond: this.fireAcceptedCounter,
       fireRejectedPerSecond: this.fireRejectedCounter,
+      targetedMessagesPerSecond: this.targetedMessagesThisSecond,
+      broadcastMessagesPerSecond: this.broadcastMessagesThisSecond,
       statePatchHz: null
     };
     this.fireAcceptedCounter = 0;
     this.fireRejectedCounter = 0;
-    this.broadcast("serverDebugStats", stats);
+    this.targetedMessagesThisSecond = 0;
+    this.broadcastMessagesThisSecond = 0;
+    this.broadcastCounted("serverDebugStats", stats);
   }
 
   private normalizeWeaponFireMessage(message: unknown): WeaponFireMessage | null {

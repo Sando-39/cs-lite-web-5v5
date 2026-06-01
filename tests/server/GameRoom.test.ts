@@ -216,4 +216,25 @@ describe("GameRoom", () => {
     expect(result?.damage).toBe(24);
     expect(ai.hp).toBe(76);
   });
+
+  it("sends weaponFireResult only to shooter, not to other players", () => {
+    const room = new GameRoom();
+    room.onCreate();
+    const shooter = makeClientWithMessages("a");
+    const other = makeClientWithMessages("b");
+    // Push mock clients into room.clients so sendToSession can find them
+    room.clients.push(shooter as any);
+    room.clients.push(other as any);
+    room.onJoin(shooter);
+    room.onJoin(other);
+    const player = room.state.players.get("a")!;
+    player.x = 0; player.y = 1.7; player.z = -20;
+    player.rotationY = 0; player.pitch = 0;
+    room.handleWeaponFireForTest("a", { weaponId: "ar4", clientTime: 1000 }, 1000);
+    // Shooter should receive fire result
+    const shooterSent = (shooter as any).sent || [];
+    const otherSent = (other as any).sent || [];
+    expect(shooterSent.some((s: any) => s.type === "weaponFireResult")).toBe(true);
+    expect(otherSent.some((s: any) => s.type === "weaponFireResult")).toBe(false);
+  });
 });
