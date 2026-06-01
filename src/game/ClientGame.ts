@@ -169,7 +169,7 @@ export class ClientGame {
 
     this.network.setPlayerDamagedHandler((message) => {
       if (message.sessionId === this.network.sessionId) {
-        this.damagePunch = -0.2;
+        this.damagePunch = -0.06;
         this.gameAudio.playDamage();
         this.hitFeedback?.show(`受到 ${message.damage} 点伤害，HP: ${message.hp}`);
       }
