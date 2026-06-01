@@ -1,4 +1,4 @@
-# CS-Lite Web v0.4.3
+# CS-Lite Web v0.4.4
 
 A browser-based multiplayer FPS training field with weapons, AI, and server-authoritative combat.
 
@@ -12,6 +12,21 @@ A browser-based multiplayer FPS training field with weapons, AI, and server-auth
 - First-person weapon models, muzzle flash, recoil
 - Weapon HUD: ammo, reload status, player HP
 - AI color-coded by state, synthetic audio feedback
+
+## v0.4.4 Runtime Performance & Network Optimization
+
+- Tracer object pooling (reuse instead of create/dispose per shot)
+- Muzzle flash reuse (created once, enabled/disabled)
+- Audio event throttling (empty click 150ms, hit 80ms, damage 150ms)
+- AI label DOM throttle (200ms or on change)
+- Weapon HUD update gate (250ms or on change)
+- HitFeedback event-driven (no repeated DOM writes)
+- Targeted weaponFireResult to shooter only
+- Targeted playerDamaged to damaged player only
+- Removed high-frequency aiEvent damaged/fired broadcasts
+- AI update frequency control (15Hz)
+- Server simulation rate (20Hz)
+- F3 optimization metrics (tracer pool, label/HUD/feedback rates, targeted/broadcast msg rates)
 
 ## v0.1 Scope
 

@@ -399,6 +399,10 @@ export class ClientGame {
     const primaryTarget = targets[0] ?? null;
     const netStats = this.network.getNetworkDebugStats(now);
     const pingSeries = this.network.getPingSeries();
+    const tracerStats = this.tracerView?.getDebugStats() ?? null;
+    const aiViewStats = this.aiEnemyView?.getDebugStats() ?? null;
+    const weaponHudStats = this.weaponHud?.getDebugStats() ?? null;
+    const hitFeedbackStats = this.hitFeedback?.getDebugStats() ?? null;
 
     return {
       roomId: this.network.roomId,
@@ -438,6 +442,17 @@ export class ClientGame {
       serverFireAcceptedPerSec: this.serverDebugStats?.fireAcceptedPerSecond ?? null,
       serverFireRejectedPerSec: this.serverDebugStats?.fireRejectedPerSecond ?? null,
       serverAliveAiCount: this.serverDebugStats?.aliveAiCount ?? null,
+      // server msg stats
+      targetedMsgPerSec: this.serverDebugStats?.targetedMessagesPerSecond ?? null,
+      broadcastMsgPerSec: this.serverDebugStats?.broadcastMessagesPerSecond ?? null,
+      aiUpdateHz: this.serverDebugStats?.aiUpdateHz ?? null,
+      simulationHz: this.serverDebugStats?.simulationHz ?? null,
+      // client object stats
+      tracerActiveCount: tracerStats?.activeCount ?? null,
+      tracerTotalCount: tracerStats?.totalCount ?? null,
+      aiLabelUpdatesPerSec: aiViewStats?.labelUpdatesPerSecond ?? null,
+      weaponHudRendersPerSec: weaponHudStats?.rendersPerSecond ?? null,
+      hitFeedbackShowsPerSec: hitFeedbackStats?.showsPerSecond ?? null,
       // target
       targetHp: primaryTarget?.hp ?? null,
       targetAlive: primaryTarget?.alive ?? null,

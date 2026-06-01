@@ -121,5 +121,9 @@ export type ServerDebugStatsMessage = {
   aliveAiCount: number;
   fireAcceptedPerSecond: number;
   fireRejectedPerSecond: number;
+  targetedMessagesPerSecond: number;
+  broadcastMessagesPerSecond: number;
+  aiUpdateHz: number;
+  simulationHz: number;
   statePatchHz: number | null;
 };

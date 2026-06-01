@@ -20,6 +20,13 @@ export type DebugSnapshot = {
   serverTickMs: number | null; serverAiUpdateMs: number | null; serverFireProcessingMs: number | null;
   serverFireAcceptedPerSec: number | null; serverFireRejectedPerSec: number | null;
   serverAliveAiCount: number | null;
+  // server msg stats
+  targetedMsgPerSec: number | null; broadcastMsgPerSec: number | null;
+  aiUpdateHz: number | null; simulationHz: number | null;
+  // client object stats
+  tracerActiveCount: number | null; tracerTotalCount: number | null;
+  aiLabelUpdatesPerSec: number | null; weaponHudRendersPerSec: number | null;
+  hitFeedbackShowsPerSec: number | null;
   // target
   targetHp: number | null; targetAlive: boolean | null;
   // series refs
@@ -79,6 +86,12 @@ export class DebugHud {
         <dt>sv fire</dt><dd>${ms(snapshot.serverFireProcessingMs)}</dd>
         <dt>sv fire acc/rej</dt><dd>${snapshot.serverFireAcceptedPerSec ?? "-"} / ${snapshot.serverFireRejectedPerSec ?? "-"}</dd>
         <dt>sv alive AI</dt><dd>${snapshot.serverAliveAiCount ?? "-"}</dd>
+        <dt>sv targeted/bcast</dt><dd>${snapshot.targetedMsgPerSec ?? "-"} / ${snapshot.broadcastMsgPerSec ?? "-"}</dd>
+        <dt>sv ai/sim Hz</dt><dd>${snapshot.aiUpdateHz ?? "-"} / ${snapshot.simulationHz ?? "-"}</dd>
+        <dt>tracer act/tot</dt><dd>${snapshot.tracerActiveCount ?? "-"} / ${snapshot.tracerTotalCount ?? "-"}</dd>
+        <dt>ai label/s</dt><dd>${fmtNum(snapshot.aiLabelUpdatesPerSec)}</dd>
+        <dt>wpn hud/s</dt><dd>${fmtNum(snapshot.weaponHudRendersPerSec)}</dd>
+        <dt>hit fb/s</dt><dd>${fmtNum(snapshot.hitFeedbackShowsPerSec)}</dd>
         <dt>targetHp</dt><dd>${snapshot.targetHp ?? "-"}</dd>
         <dt>targetAlive</dt><dd>${snapshot.targetAlive === null ? "-" : String(snapshot.targetAlive)}</dd>
       </dl>
@@ -102,3 +115,4 @@ export class DebugHud {
 
 function f(v: string | null): string { return v && v.length > 0 ? v : "-"; }
 function ms(v: number | null): string { return v === null ? "-" : `${Math.round(v)}ms`; }
+function fmtNum(v: number | null): string { return v === null ? "-" : v.toFixed(1); }

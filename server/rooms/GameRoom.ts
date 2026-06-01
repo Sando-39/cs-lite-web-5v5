@@ -1,5 +1,5 @@
 import { Room, type Client } from "colyseus";
-import { AI_DAMAGE, AI_DETECTION_RANGE_UNITS, AI_FIELD_OF_VIEW_DEGREES, AI_FIRE_INTERVAL_MS, AI_MOVE_SPEED_UNITS_PER_SECOND, AI_UPDATE_INTERVAL_MS, MAX_PLAYERS, PLAYER_REGEN_DELAY_MS, PLAYER_REGEN_PER_SECOND, RIFLE_DAMAGE, SERVER_SIMULATION_INTERVAL_MS } from "../../shared/constants.js";
+import { AI_DAMAGE, AI_DETECTION_RANGE_UNITS, AI_FIELD_OF_VIEW_DEGREES, AI_FIRE_INTERVAL_MS, AI_MOVE_SPEED_UNITS_PER_SECOND, AI_UPDATE_HZ, AI_UPDATE_INTERVAL_MS, MAX_PLAYERS, PLAYER_REGEN_DELAY_MS, PLAYER_REGEN_PER_SECOND, RIFLE_DAMAGE, SERVER_SIMULATION_HZ, SERVER_SIMULATION_INTERVAL_MS } from "../../shared/constants.js";
 import type { FireMessage, FireResultMessage, ReloadResult, WeaponFireMessage, WeaponFireResult } from "../../shared/types.js";
 import { isWeaponId, getWeaponConfig } from "../../shared/weapons.js";
 import { createPlayerRecord } from "../logic/playerSlots.js";
@@ -419,6 +419,8 @@ export class GameRoom extends Room<{ state: GameState }> {
       fireRejectedPerSecond: this.fireRejectedCounter,
       targetedMessagesPerSecond: this.targetedMessagesThisSecond,
       broadcastMessagesPerSecond: this.broadcastMessagesThisSecond,
+      aiUpdateHz: AI_UPDATE_HZ,
+      simulationHz: SERVER_SIMULATION_HZ,
       statePatchHz: null
     };
     this.fireAcceptedCounter = 0;
