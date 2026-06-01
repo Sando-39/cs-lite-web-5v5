@@ -28,9 +28,20 @@ const gameServer = new Server({
     const clientIndexPath = path.join(clientDistPath, "index.html");
 
     if (fs.existsSync(clientIndexPath)) {
-      app.use(express.static(clientDistPath));
+      app.use(
+        express.static(clientDistPath, {
+          setHeaders(res, filePath) {
+            if (filePath.endsWith("index.html")) {
+              res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            } else {
+              res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            }
+          }
+        })
+      );
 
       app.get("/{*splat}", (_req, res) => {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         res.sendFile(clientIndexPath);
       });
     } else {
