@@ -96,6 +96,8 @@ export class WeaponView {
 
   dispose(): void { this.root.dispose(); }
 
+  getDebugStats() { return { partCount: 3, active: this.flashCore?.isEnabled() ?? false, triggeredPerSecond: 0 }; }
+
   private showFlash(weaponId: WeaponId): void {
     const s = getWeaponConfig(weaponId).muzzleFlashScale;
     this.flashCore.scaling.setAll(s * 0.6 + Math.random() * 0.2);

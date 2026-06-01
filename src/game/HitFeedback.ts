@@ -4,6 +4,8 @@ export class HitFeedback {
   private root: HTMLElement;
   private element: HTMLDivElement;
   private expiresAt = 0;
+  private showCounter = 0;
+  private lastCounterResetAt = 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -17,6 +19,9 @@ export class HitFeedback {
     this.element.textContent = message;
     this.element.classList.add("visible");
     this.expiresAt = performance.now() + FIRE_FEEDBACK_DURATION_MS;
+    const now = performance.now();
+    if (now - this.lastCounterResetAt >= 1000) { this.showCounter = 0; this.lastCounterResetAt = now; }
+    this.showCounter++;
   }
 
   update(now: number): void {
@@ -26,6 +31,8 @@ export class HitFeedback {
       this.expiresAt = 0;
     }
   }
+
+  getDebugStats() { return { showsPerSecond: this.showCounter, active: this.element.classList.contains("visible") }; }
 
   dispose(): void { this.element.remove(); }
 }
